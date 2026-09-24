@@ -137,6 +137,10 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
     <div class="group">
       <p style="display:flex;justify-content:space-between;align-items:center"><b>Stemmen</b><button class="linkish" id="voiceReload" style="margin:0">Opnieuw zoeken</button></p>
       <p class="small" id="voiceCount" style="margin:-4px 0 8px"></p>
+      <details style="margin:0 0 10px"><summary class="small" style="color:var(--blue)">Welke stemmen ziet deze telefoon?</summary>
+        <p class="small" style="margin:6px 0">Alle stemmen die Safari aan de app doorgeeft, in alle talen. Maak hier gerust een schermafbeelding van.</p>
+        <ol id="voiceAll" class="small" style="padding-left:18px;margin:0;max-height:260px;overflow:auto"></ol>
+      </details>
       <p class="small" style="margin:0 0 4px">112-centralist</p>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
         <select id="voiceSel112" class="vsel"></select>
@@ -258,6 +262,17 @@ function voiceScore(v){
   if(/eloquence|grandma|grandpa|\boma\b|\bopa\b|rocko|shelley|\bflo\b|\breed\b|sandy|eddy/.test(n)) sc-=6;
   return sc;
 }
+function listAllVoices(){
+  const ol=document.getElementById('voiceAll'); if(!ol||!synth) return;
+  const vs=synth.getVoices(); ol.innerHTML='';
+  if(!vs.length){ const li=document.createElement('li'); li.textContent='Safari geeft (nog) geen stemmen door.'; ol.appendChild(li); return; }
+  vs.slice().sort((a,b)=>(voiceScore(b)>=0)-(voiceScore(a)>=0) || (a.lang||'').localeCompare(b.lang||'')).forEach(v=>{
+    const li=document.createElement('li'); const q=voiceQuality(v);
+    li.textContent=v.name+'  ['+(v.lang||'?')+']'+(q?'  '+q:'')+(voiceScore(v)>=0?'  ✓ bruikbaar':'');
+    if(voiceScore(v)>=0) li.style.fontWeight='600';
+    ol.appendChild(li);
+  });
+}
 function nlVoices(){ return synth ? synth.getVoices().filter(v=>voiceScore(v)>=0).sort((a,b)=>voiceScore(b)-voiceScore(a)) : []; }
 let voice112=null;
 function pickVoice(){
@@ -269,7 +284,8 @@ function pickVoice(){
   [['voiceSel112',voice112],['voiceSelAmb',voice]].forEach(([id,cur])=>{
     const sel=document.getElementById(id); if(!sel) return; sel.innerHTML='';
     vs.forEach(v=>{ const o=document.createElement('option'); o.value=vkey(v); const q=voiceQuality(v); o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim()+(q?' ('+q+')':'')+((v.lang||'').toLowerCase().includes('be')?', Vlaams':''); if(cur&&vkey(v)===vkey(cur)) o.selected=true; sel.appendChild(o); });
-    const cnt=document.getElementById('voiceCount'); if(cnt) cnt.textContent=vs.length+' Nederlandse stem'+(vs.length===1?'':'men')+' gevonden.';
+    listAllVoices();
+    const cnt=document.getElementById('voiceCount'); if(cnt && Date.now()>(window.voiceMsgUntil||0)) cnt.textContent=vs.length+' Nederlandse stem'+(vs.length===1?'':'men')+' gevonden.';
     if(!vs.length){ const o=document.createElement('option'); o.textContent='Geen Nederlandse stem gevonden'; sel.appendChild(o); }
   });
 }
@@ -992,7 +1008,7 @@ $('voiceReload').onclick=()=>{
   let n=0;
   const step=()=>{ pickVoice(); n++;
     if(n<4){ setTimeout(step, 700); return; }
-    const after=nlVoices().length;
+    const after=nlVoices().length; window.voiceMsgUntil=Date.now()+20000;
     cnt.textContent = after+' Nederlandse stem'+(after===1?'':'men')+' gevonden'
       + (after>before ? ', er zijn nieuwe bijgekomen.' : '. Mis je een stem die je net hebt gedownload? Sluit Safari dan helemaal af en open de app opnieuw.');
   };
