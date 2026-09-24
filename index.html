@@ -244,6 +244,12 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const synth = window.speechSynthesis;
 let voice=null;
 const vkey=v=>v.voiceURI||v.name;
+// hoe de stem woorden moet uitspreken: 112 als losse cijfers, AED als losse letters (aa-ee-dee)
+function speakable(t){
+  return t.replace(/\b112\b/g,'één één twee')
+          .replace(/\bAED'?s\b/g,'aa-ee-dees')
+          .replace(/\bAED\b/g,'aa-ee-dee');
+}
 function voiceQuality(v){
   const n=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase();
   if(/premium/.test(n)) return 'Premium';
@@ -357,7 +363,7 @@ function say(text, then){
   const done=()=>{ if(fired || S.sayId!==id) return; fired=true; S.speaking=false; if(S.phase!=='done' && then) then(); };
   if(!synth){ setTimeout(done,500); return; }
   synth.cancel();
-  const u=new SpeechSynthesisUtterance(text.replace(/\b112\b/g,'één één twee')); u.lang='nl-NL'; const rv=roleVoice(S.role||'112'); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; u.volume=S.speaker?1:0.25;
+  const u=new SpeechSynthesisUtterance(speakable(text)); u.lang='nl-NL'; const rv=roleVoice(S.role||'112'); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; u.volume=S.speaker?1:0.25;
   u.onend=done; u.onerror=done; later(done, 1800+text.length*85);
   synth.speak(u);
 }
@@ -995,11 +1001,11 @@ $('againBtn').onclick=()=>show('intro');
 function hookVoice(selId, testId, key, role, sample){
   $(selId).onchange=e=>{ const v=nlVoices().find(x=>vkey(x)===e.target.value); if(!v) return;
     if(role==='112') voice112=v; else voice=v; try{ localStorage.setItem(key, vkey(v)); }catch(err){} };
-  $(testId).onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance(sample); u.lang='nl-NL';
+  $(testId).onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance(speakable(sample)); u.lang='nl-NL';
     const rv=roleVoice(role); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; synth.speak(u); };
 }
 hookVoice('voiceSel112','voiceTest112','stem112','112','één één twee. Heeft u politie, brandweer of ambulance nodig?');
-hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Waar bent u precies? Noem straat, huisnummer en plaats.');
+hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Waar bent u precies? Is er een AED ter plaatse?');
 $('voiceReload').onclick=()=>{
   const cnt=$('voiceCount'); const before=nlVoices().length;
   cnt.textContent='Zoeken naar stemmen…';
