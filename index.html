@@ -213,9 +213,9 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
    Laat 'naam' leeg ('') voor een plek die nog niet in gebruik is.
    ===================================================================== */
 const SCENARIOS = [
-  { naam:'De Haagse Hogeschool, kort', adres:'Johanna Westerdijkplein 75, Den Haag',
+  { naam:'De Haagse Hogeschool, kort', adres:'Johanna Westerdijkplein 75, Den Haag', kort:true,   // kort: weinig vragen, korte instructies
     herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
-    bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.',
+    bevestig:'Haagse Hogeschool, begrepen.',
     // soms leest de meldkamer het adres ter controle voor, en soms bewust met een fout
     controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
     controleFout:'Zei u de Westerdijkstraat in Den Haag?',
@@ -362,6 +362,7 @@ function startRec(){
     for(let i=e.resultIndex;i<e.results.length;i++){
       const res=e.results[i]; const txt=res[0].transcript;
       S.lastSpeech=now();
+      if(!isCountOnly(txt)){ S.lastTalk=now(); if(S.bufT){ clearTimeout(S.bufT); S.bufT=setTimeout(flushBuf, 1000); } }
       if(S.phase==='opening' && hasNumber(txt)){ S.heardNumbers=true; if(/\btien\b|\b10\b/.test(txt.toLowerCase())) S.sawTen=true; }
       if(res.isFinal){ const alts=[]; for(let j=0;j<res.length;j++) alts.push(res[j].transcript); onFinal(alts); }
     }
@@ -394,10 +395,16 @@ const Q={
   unresp:{ ask:'Reageert {hij} als u {hem} aanspreekt en aan {zijn} schouders schudt?', short:'Reageert {hij}?' },
   breath:{ ask:'Ademt {hij} normaal? Kijk en luister.', short:'Ademt {hij} normaal?' },
   confirm:{ ask:'Klopt het adres?', short:'Klopt het adres?' },
+  combo:{ ask:'Reageert {hij} en ademt {hij} normaal?', short:'Reageert {hij} en ademt {hij} normaal?' },
   know:{ ask:'U gaat reanimeren. Weet u hoe dat moet?', short:'Weet u hoe u moet reanimeren?' }
 };
 function nextQ(){
   if(!S.slots.address) return 'address';
+  if(SC.kort){
+    if(!S.slots.cpr && !(S.slots.unresp && S.slots.noBreath)) return 'combo';
+    if(!S.slots.cpr && S.knows===undefined) return 'know';
+    return null;
+  }
   if(!S.slots.cpr){ if(!S.slots.unresp) return 'unresp'; if(!S.slots.noBreath) return 'breath'; }
   if(S.knows===undefined) return 'know';
   return null;
@@ -405,7 +412,9 @@ function nextQ(){
 function ask(q, prefix){
   S.pendingQ=q; S.reprompts=0; if(q!=='opening' && q!=='ambOpen') S.asked.add(q);
   if(q!=='opening') $('callTitle').textContent='Meldkamer ambulance';
-  const txt = (q==='know' && S.slots.cpr) ? 'U bent al aan het reanimeren. Weet u hoe het moet?' : Q[q].ask;
+  let txt = (q==='know' && S.slots.cpr) ? 'U bent al aan het reanimeren. Weet u hoe het moet?' : Q[q].ask;
+  if(SC.kort && q==='ambOpen') txt='Meldkamer ambulance. Waar bent u precies?';
+  if(SC.kort && q==='know') txt='Weet u hoe u moet reanimeren?';
   say((prefix?prefix+' ':'')+txt, listenQ);
 }
 function listenQ(){ S.busy=false; startRec(); armSilence(); }
@@ -437,7 +446,24 @@ function extract(m, isOpening){
   return got;
 }
 
+const talking=()=>now()-(S.lastTalk||0) < 2500; // de student is net aan het praten (tellen telt niet mee)
+// Wacht even na een zin: praat de student nog door, dan worden de stukjes samengevoegd.
 function onFinal(alts){
+  const first=alts[0].trim(); if(!first) return;
+  if(S.phase==='questions' || S.phase==='cpr'){
+    if(isCountOnly(first)){ if(S.phase==='questions') addMsg('count', first); return; }
+    (S.bufFirst=S.bufFirst||[]).push(first); (S.bufAll=S.bufAll||[]).push(alts.join(' | '));
+    clearTimeout(S.bufT); S.bufT=setTimeout(flushBuf, 1000);
+    return;
+  }
+  onFinalNow(alts);
+}
+function flushBuf(){
+  S.bufT=null; if(!S.bufFirst||!S.bufFirst.length) return;
+  const first=S.bufFirst.join(' '), all=S.bufAll.join(' | '); S.bufFirst=[]; S.bufAll=[];
+  onFinalNow([first, all]);
+}
+function onFinalNow(alts){
   const first=alts[0].trim(); if(!first) return;
   const m=alts.join(' | ').toLowerCase();
   if(S.phase==='opening'){
@@ -487,6 +513,13 @@ function service(m){
 }
 function respond(m, q){
   if(q==='opening') return service(m);
+  if(q==='combo'){
+    // één vraag voor reactie en ademhaling; happen of twijfel telt als niet normaal
+    if(/\bja\b|normaal/.test(m) && !/\bnee\b|niet|geen|hap|snurk|twijfel|weet (het )?niet/.test(m)){
+      S.wrongBreath=true; note('Hij reageert niet en hapt af en toe naar adem: dat is geen normale ademhaling.');
+    }
+    S.slots.unresp=true; S.slots.noBreath=true;
+  }
   const first=!!S.firstAmb; S.firstAmb=false;
   const got=extract(m, first);
   const acks=[];
@@ -524,7 +557,7 @@ function respond(m, q){
     }
     acks.push(SC.bevestig);
   }
-  if(got.includes('cpr')) acks.push('U bent al gestart met reanimeren, heel goed.');
+  if(got.includes('cpr')) acks.push(SC.kort ? 'Goed.' : 'U bent al gestart met reanimeren, heel goed.');
 
   const next=nextQ();
   if(!next) return startCpr(acks);
@@ -558,8 +591,8 @@ function arriveSec(){
 function ambulanceArrives(){
   if(S.phase!=='cpr' || S.handover) return;
   siren(SIREN);
-  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say(hasHelp() ? 'Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. Ga door tot het ambulanceteam het overneemt.' : 'Ik hoor de sirene, de ambulance is er bijna. Blijf bij de persoon en ga door tot het ambulanceteam het overneemt.', startRec); }, 12000);
-  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say('De ambulance is bij u. Vertel de hulpverleners kort wat er is gebeurd, wanneer de reanimatie begon en wat de AED heeft aangegeven. Laat hen de zorg overnemen. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+10)*1000);
+  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()||talking()){ later(t,2500); return; } say(hasHelp() ? 'Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. Ga door tot het ambulanceteam het overneemt.' : 'Ik hoor de sirene, de ambulance is er bijna. Blijf bij de persoon en ga door tot het ambulanceteam het overneemt.', startRec); }, 12000);
+  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()||talking()){ later(t,2500); return; } say('De ambulance is bij u. Vertel de hulpverleners kort wat er is gebeurd, wanneer de reanimatie begon en wat de AED heeft aangegeven. Laat hen de zorg overnemen. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+10)*1000);
 }
 const CPR_MAX=12*60; // veiligheidsgrens: na 12 minuten stopt de oefening vanzelf
 /* ---- helpers: wie is er NU bij het slachtoffer (de beller niet meegeteld)? ----
@@ -716,14 +749,22 @@ function startCpr(acks){
   const askAed = !S.aed && S.aedState!=='fetching' && !S.noAed;
   const tail = askAed ? 'Is er een AED ter plaatse, of wordt die gehaald?' : 'Ik blijf aan de lijn.';
   if(askAed) S.cprQ='aedq';
-  say([...acks, send, ...spk, how, ...two, tail].join(' '), ()=>{
+  let parts=[...acks, send, ...spk, how, ...two, tail];
+  if(SC.kort){
+    const kHow = S.slots.cpr && S.knows!==false ? 'Ga door.' : S.knows ? 'Begint u maar.' : 'Handen midden op de borst, armen gestrekt, stevig en snel drukken. Begin nu.';
+    const kSend = S.aed ? 'Twee ambulances zijn onderweg. Volg de AED.' : S.noAed ? 'Twee ambulances zijn onderweg, zij nemen een AED mee.' : 'Twee ambulances en burgerhulpverleners met een AED zijn onderweg.';
+    parts=[...acks, kSend, ...(S.speaker?[]:['Zet de telefoon op de luidspreker.']), kHow, ...(hasHelp()?['Wissel elke twee minuten.']:[]), askAed?'Is er een AED?':''];
+  }
+  say(parts.filter(Boolean).join(' '), ()=>{
     S.phase='cpr'; S.cprStart=now();
     later(()=>{ if(S.cprQ==='aedq') S.cprQ=null; }, 20000);
-    COACH.forEach(([sec,f])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking && !S.cprQ && !quiet()){ const t=f(); if(t) say(t, startRec); } }, sec*1000));
+    COACH.forEach(([sec,f])=>later(function c(){ if(S.phase!=='cpr' || S.aed || S.cprQ || quiet()) return; if(S.speaking||talking()){ later(c,2500); return; } const t=f(); if(t && (!SC.kort || /wissel/i.test(t))) say(t, startRec); }, sec*1000));
     later(()=>finish(false), CPR_MAX*1000);
     later(ambulanceArrives, Math.max(5, arriveSec() - SIREN - elapsed())*1000);
-    askDuring(20, 'phone', 'Voor als de verbinding wegvalt: op welk nummer kan ik u terugbellen?');
-    askDuring(VRAAG_WAT_NA_SECONDEN, 'what', 'Weet u wat er gebeurd is?', ()=>!S.what);
+    if(!SC.kort){
+      askDuring(20, 'phone', 'Voor als de verbinding wegvalt: op welk nummer kan ik u terugbellen?');
+      askDuring(VRAAG_WAT_NA_SECONDEN, 'what', 'Weet u wat er gebeurd is?', ()=>!S.what);
+    }
     if(S.askAge) askDuring(150, 'age', 'Hoe oud is {hij} ongeveer?');
     startRec();
   });
@@ -731,7 +772,7 @@ function startCpr(acks){
 function askDuring(sec, key, text, cond){
   later(function tryAsk(){
     if(S.phase!=='cpr' || S.handover || (cond && !cond())) return;
-    if(S.speaking || S.cprQ || quiet()){ later(tryAsk, 4000); return; }
+    if(S.speaking || S.cprQ || quiet() || talking()){ later(tryAsk, 3000); return; }
     S.cprQ=key; say(text, startRec);
     later(()=>{ if(S.cprQ===key) S.cprQ=null; }, 20000); // geen antwoord: vraag laten vallen
   }, sec*1000);
@@ -923,6 +964,7 @@ $('dialBtn').onclick=async ()=>{
   S.noAed = Math.random()<0.25;
   S.confirmPlan = Math.random()<0.5 ? (Math.random()<0.5 ? 'wrong' : 'right') : null;
   S.askAge = Math.random()<0.5;
+  if(SC.kort){ S.confirmPlan=null; S.askAge=false; }
   setInd('talk','Gaat over…');
   // één keer overgaan, dan neemt de centralist op
   later(()=>{
@@ -942,7 +984,20 @@ function hookVoice(selId, testId, key, role, sample){
 }
 hookVoice('voiceSel112','voiceTest112','stem112','112','één één twee. Heeft u politie, brandweer of ambulance nodig?');
 hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Waar bent u precies? Noem straat, huisnummer en plaats.');
-$('voiceReload').onclick=()=>{ pickVoice(); setTimeout(pickVoice,800); };
+$('voiceReload').onclick=()=>{
+  const cnt=$('voiceCount'); const before=nlVoices().length;
+  cnt.textContent='Zoeken naar stemmen…';
+  // een stille zin laat de iPhone de stemmenlijst opnieuw inlezen
+  if(synth){ try{ synth.cancel(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; u.lang='nl-NL'; synth.speak(u); }catch(e){} }
+  let n=0;
+  const step=()=>{ pickVoice(); n++;
+    if(n<4){ setTimeout(step, 700); return; }
+    const after=nlVoices().length;
+    cnt.textContent = after+' Nederlandse stem'+(after===1?'':'men')+' gevonden'
+      + (after>before ? ', er zijn nieuwe bijgekomen.' : '. Mis je een stem die je net hebt gedownload? Sluit Safari dan helemaal af en open de app opnieuw.');
+  };
+  setTimeout(step, 300);
+};
 $('testBtn').onclick=()=>{
   const out=$('testOut'); audio(); setVolume(1);
   beep(425,0.6,0.35);
