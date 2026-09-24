@@ -310,6 +310,7 @@ function stopMetronome(){ clearInterval(S.beatId); S.beatId=null; }
 /* ---------------- speech out ---------------- */
 function say(text, then){
   const zij=S.pron==='zij';
+  text=text.replace(/\{door\}/g, S.aed ? 'Volg de instructies van de AED.' : 'Blijf doordrukken.');
   text=text.replace(/\{hij\}/g,zij?'zij':'hij').replace(/\{hem\}/g,zij?'haar':'hem').replace(/\{zijn\}/g,zij?'haar':'zijn');
   addMsg('disp', text);
   stopRec(); S.speaking=true; setInd('talk','Meldkamer spreekt…');
@@ -376,13 +377,15 @@ const Q={
 };
 function nextQ(){
   if(!S.slots.address) return 'address';
-  if(!S.slots.cpr){ if(!S.slots.unresp) return 'unresp'; if(!S.slots.noBreath) return 'breath'; if(S.knows===undefined) return 'know'; }
+  if(!S.slots.cpr){ if(!S.slots.unresp) return 'unresp'; if(!S.slots.noBreath) return 'breath'; }
+  if(S.knows===undefined) return 'know';
   return null;
 }
 function ask(q, prefix){
   S.pendingQ=q; S.reprompts=0; if(q!=='opening' && q!=='ambOpen') S.asked.add(q);
   if(q!=='opening') $('callTitle').textContent='Meldkamer ambulance';
-  say((prefix?prefix+' ':'')+Q[q].ask, listenQ);
+  const txt = (q==='know' && S.slots.cpr) ? 'U bent al aan het reanimeren. Weet u hoe het moet?' : Q[q].ask;
+  say((prefix?prefix+' ':'')+txt, listenQ);
 }
 function listenQ(){ S.busy=false; startRec(); armSilence(); }
 function armSilence(){
@@ -402,7 +405,9 @@ function extract(m, isOpening){
   if(!S.slots.unresp && /reageert niet|reageerde niet|niet reageert|niet reageerde|nergens op reageert|niet aanspreekbaar|bewusteloos|geen reactie|reageert nergens|niet bij bewustzijn|buiten bewustzijn/.test(m)){ S.slots.unresp=true; got.push('unresp'); }
   if(!S.slots.noBreath && /(ademt|ademhaling)[^|]{0,15}\b(niet|geen)\b|\bniet\b[^|]{0,12}ademt|geen (normale )?ademhaling|happ?end|snurk|gasp|naar adem/.test(m)){ S.slots.noBreath=true; got.push('noBreath'); }
   if(!S.slots.cpr && /reanim|hartmassage|borstcompressie|ik druk|ik ben aan het drukken|begonnen|gestart/.test(m)){ S.slots.cpr=true; got.push('cpr'); startMetronome(); }
-  if(!S.aed && /\baed\b|a e d|a\.e\.d|defibrillator|hartstarter/.test(m) && !/stuur|komt|onderweg|waar|halen|geen/.test(m)){ S.aed=true; S.aedEarly=true; got.push('aed'); }
+  if(!S.aed && /\baed\b|a e d|a\.e\.d|defibrillator|hartstarter/.test(m) && !/stuur|komt|onderweg|waar|halen|geen/.test(m)){ S.aed=true; S.aedEarly=true; S.aedState='present'; got.push('aed'); }
+  if(!S.aed && S.aedState!=='fetching' && /(haal|gehaald|ophalen|pakt|rent).{0,25}(aed|a e d|defibrillator|hartstarter)|(aed|a e d|defibrillator|hartstarter).{0,25}(halen|gehaald|ophalen|onderweg)/.test(m)){ S.aedState='fetching'; got.push('aedFetch'); }
+  if(S.knows===undefined && /bhv|ehbo|cursus|geleerd|getraind|opgeleid|verpleegkundige|\barts\b|ambulanceverpleegkundige|kan reanimeren|weet hoe|weet wat ik doe/.test(m)){ S.knows=true; got.push('knows'); }
   if(!S.two && /met z.?n twee|met ons twee|tweede|collega|we zijn met twee|nog iemand|iemand bij me|iemand helpt/.test(m)){ S.two=true; got.push('two'); }
   if(!S.pron && /vrouw|mevrouw|meisje|dame|\bzij\b|\bze\b|\bhaar\b/.test(m)) S.pron='zij';
   if(!S.pron && /\bman\b|meneer|jongen|\bhij\b|\bhem\b/.test(m)) S.pron='hij';
@@ -528,8 +533,8 @@ function ambulanceArrives(){
   if(S.phase!=='cpr' || S.handover) return;
   const SIREN=28;
   siren(SIREN);
-  later(()=>{ if(S.phase==='cpr' && !S.handover) say('Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. U blijft drukken tot zij het overnemen.', startRec); }, 12000);
-  later(()=>{ if(S.phase==='cpr' && !S.handover) say('De ambulance is bij u. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+20)*1000);
+  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say('Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. Ga door tot het ambulanceteam het overneemt.', startRec); }, 12000);
+  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say('De ambulance is bij u. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+20)*1000);
 }
 const CPR_MAX=12*60; // veiligheidsgrens: na 12 minuten stopt de oefening vanzelf
 const COACH=[
@@ -542,50 +547,104 @@ for(let k=2;k<=5;k++){
   COACH.push([120*k-60, k%2 ? 'U doet het goed. Blijf doorgaan, de hulp komt eraan.' : 'Gaat het nog? Zeg het als u moe wordt.']);
   COACH.push([120*k, 'Weer twee minuten. Wissel als dat kan, zonder pauze.']);
 }
+const AEDW='(aed|a e d|a\\.e\\.d|ae d|a ee d|defibrillator|hartstarter)';
 const CPR_REPLIES=[
   [/stop de oefening|einde oefening|oefening stoppen/, null, 'stop'],
-  [/ambulance is er|ambulance is hier|ambulance is gearriveerd|ambulance is aangekomen|ambulance staat|hulpverleners zijn er|ambulancepersoneel|ambulance neemt/, 'Fijn. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', 'handover'],
-  [/waar blijft de aed|komt (er )?(een )?aed|aed onderweg|aed.*(halen|komt)/, 'Er zijn burgerhulpverleners met een AED onderweg. Is er iemand in de buurt die een AED kan halen, stuur die dan. Blijf drukken.'],
-  [/\baed\b|a e d|a\.e\.d|defibrillator|hartstarter/, 'Goed. Zet de AED aan en volg de gesproken instructies. Ik blijf aan de lijn en ben stil, zodat u de AED goed hoort.', 'aed'],
-  [/schok|shock/, 'Goed. Ga direct weer door met drukken, zoals de AED zegt.'],
-  [/aanrij|hoe lang (duurt|nog)|hoe ver|wanneer (is|zijn|komt|komen)|waar blijft de ambulance|hoelang/, 'Er zijn twee ambulances met spoed onderweg. Ze zijn er binnen enkele minuten. Ga door met reanimeren, u doet het goed.'],
+  [/ambulance is er|ambulance is hier|ambulance is gearriveerd|ambulance is aangekomen|ambulance staat|hulpverleners zijn er|ambulancepersoneel|ambulance neemt|ambulanceteam is/, 'Fijn. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', 'handover'],
+  [/aanrij|hoe lang (duurt|nog)|hoe ver|wanneer (is|zijn|komt|komen)|waar blijft de ambulance|hoelang/, 'Er zijn twee ambulances met spoed onderweg. Ze zijn er binnen enkele minuten. {door}', 'aedok'],
   [/politie/, 'Ik stuur ook de politie ter ondersteuning. De politie heeft vaak een AED bij zich.', 'aedok'],
-  [/brandweer/, 'De brandweer komt ook, die kan helpen met reanimeren. Ga door tot zij het overnemen.', 'aedok'],
-  [/met z.?n twee|met ons twee|tweede|collega|nog iemand|iemand bij (me|mij|ons)|iemand helpt|er is hulp/, 'Fijn dat u hulp heeft. Wissel elke twee minuten van wie er drukt, zonder pauze. De ander kan de AED klaarmaken of de ambulance opvangen.', 'aedok'],
-  [/beadem|mond op mond|blazen|lucht in/, 'Beademen hoeft niet. Blijf vooral doordrukken. Heeft u het geleerd en wilt u het, doe dan dertig keer drukken en twee keer beademen.'],
+  [/brandweer/, 'De brandweer komt ook, die kan helpen met reanimeren.', 'aedok'],
+  [/met z.?n twee|met ons twee|met z.?n drie|tweede|collega|nog iemand|iemand bij (me|mij|ons)|iemand helpt|er is hulp|bhv.?er (is|komt)|nog een bhv/, 'Fijn dat u hulp heeft. Wissel elke twee minuten van wie er drukt, zonder pauze. De ander kan de AED halen of klaarmaken, of de ambulance opvangen.', 'aedok'],
+  [/beadem|mond op mond|blazen|lucht in|30.?2|dertig.{0,6}twee|pocket ?mask|masker/, 'Dat is goed. Heeft u het geleerd, doe dan dertig keer drukken en twee keer beademen. Anders mag u ook alleen drukken.', 'aedok'],
   [/waar (moet ik )?drukken|welke plek|hoe (moet|doe) ik/, 'Midden op de borst, handen op elkaar, armen gestrekt. Vijf tot zes centimeter diep, ongeveer twee keer per seconde.'],
-  [/mag ik stoppen|moet ik stoppen|kan ik stoppen|stoppen\?/, 'Nee, blijf drukken tot de AED zegt dat u moet stoppen of tot de ambulance het overneemt.'],
-  [/overgeven|braakt|spuugt|kotst|braaksel/, 'Draai het hoofd even opzij, veeg de mond schoon en ga direct weer door met drukken.'],
-  [/opvangen|wijzen|ingang|omstanders|mensen om|toeschouwers/, 'Vraag iemand om bij de ingang te gaan staan en de ambulance de weg te wijzen. Houdt omstanders op afstand. U blijft drukken.', 'aedok'],
-  [/hoort u mij|hoor je mij|bent u (er )?nog|ben je er nog|hallo/, 'Ja, ik hoor u. Ik blijf aan de lijn. Ga door met drukken.', 'aedok'],
+  [/mag ik stoppen|moet ik stoppen|kan ik stoppen|stoppen\?/, 'Nee, ga door tot de AED zegt dat u moet stoppen of tot de ambulance het overneemt.', 'aedok'],
+  [/overgeven|braakt|spuugt|kotst|braaksel/, 'Draai het hoofd even opzij, veeg de mond schoon en ga direct weer verder.', 'aedok'],
+  [/opvangen|wijzen|ingang|slagboom|receptie|lift|omstanders|mensen om|toeschouwers/, 'Goed. Laat iemand bij de ingang staan om de ambulance de weg te wijzen, en houd omstanders op afstand.', 'aedok'],
+  [/hoort u mij|hoor je mij|bent u (er )?nog|ben je er nog|hallo/, 'Ja, ik hoor u. Ik blijf aan de lijn.', 'aedok'],
   [/bloed/, 'Ga door met reanimeren, dat is nu het belangrijkste. De ambulance kijkt daar straks naar.'],
-  [/pacemaker|bultje/, 'Dat maakt niet uit. Plak de elektrode van de AED niet precies op de pacemaker, maar er iets naast.'],
-  [/zwanger/, 'Ga gewoon door met reanimeren. Ik geef het door aan de ambulance.'],
-  [/bedankt|dank je|dank u/, 'Graag gedaan. Blijf doorgaan, u doet het goed.', 'aedok'],
+  [/pacemaker|bultje/, 'Dat maakt niet uit. Plak de elektrode van de AED niet precies op de pacemaker, maar er iets naast.', 'aedok'],
+  [/zwanger/, 'Ga gewoon door met reanimeren. Ik geef het door aan de ambulance.', 'aedok'],
+  [/nat|regen|water|plas/, 'Leg {hem} als dat snel kan op een droge plek en droog de borst af voordat de elektroden worden geplakt.', 'aedok'],
+  [/borsthaar|behaard|haren/, 'Scheer of trek het haar weg waar de elektroden komen, als er een scheermesje bij de AED zit. Anders stevig aandrukken.', 'aedok'],
+  [/sieraden|ketting|piercing|bh|beugel/, 'Zorg dat de elektroden niet op metaal komen. Schuif het opzij en plak de elektroden op de blote huid.', 'aedok'],
+  [/bedankt|dank je|dank u/, 'Graag gedaan. U doet het goed.', 'aedok'],
   [/overne|wissel|afloss|neemt het|nemen het/, 'Goed. Wissel snel en ga meteen door, zonder pauze.', 'aedok'],
   [/moe|kan niet meer|zwaar/, 'Dat is heel normaal. Is er iemand die het kan overnemen? Wissel dan zonder pauze. Anders: houd vol, u doet het heel goed.', 'aedok'],
-  [/beweegt|wakker|hoest|ogen open|\breageert\b|ademt weer/, 'Kijk kort: ademt {hij} nu normaal? Zo niet, ga direct door met drukken.'],
-  [/hoe lang|wanneer|ambulance|komt er/, 'Er zijn twee ambulances onderweg. Ga door tot de hulpverleners het van u overnemen.'],
+  [/hoe lang|wanneer|ambulance|komt er/, 'Er zijn twee ambulances onderweg. Ga door tot de hulpverleners het van u overnemen.', 'aedok'],
   [/hoe diep|hoe hard|hoe snel|doe ik het goed|klopt het/, 'Midden op de borst, vijf tot zes centimeter diep, ongeveer twee keer per seconde. Laat de borst steeds helemaal terugkomen.'],
-  [/rib|kraak|knap/, 'Dat kan gebeuren. Ga gewoon door met drukken, dat is nu het belangrijkste.'],
-  [/bang|eng|spannend|help/, 'U doet precies wat nodig is. Ik blijf bij u aan de lijn. Blijf drukken.']
+  [/rib|kraak|knap/, 'Dat kan gebeuren. Ga gewoon door, dat is nu het belangrijkste.', 'aedok'],
+  [/bang|eng|spannend|help/, 'U doet precies wat nodig is. Ik blijf bij u aan de lijn.', 'aedok']
 ];
+/* ---- AED: volgt stap voor stap waar de student is ----
+   none -> halen -> er -> aansluiten -> ritmecheck -> schok / geen schok -> weer drukken
+   Tijdens aansluiten en ritmecheck is de meldkamer stil, zodat de AED goed te horen is. */
+const has=(re,m)=>new RegExp(re).test(m);
+function quiet(){ return now() < (S.quietUntil||0); }
+function aedHandler(m, first){
+  const aedWord=has(AEDW,m);
+  const st=S.aedState||'none';
+  // zinnen van de student bevatten meestal 'we', 'ik', 'hij' enz.; de AED zelf geeft korte bevelen ('Plak de elektroden')
+  const fromStudent=/\b(we|wij|ik|ze|zij|collega|hij|jullie|u|er)\b|wordt|worden|gaan|hebben|heeft|gegeven|gedaan|geweest/.test(m);
+  const go=(state, reply, quietSec, always)=>{
+    if(!fromStudent && !always) reply=null;
+    const changed = st!==state;
+    S.aedState=state;
+    if(['present','connecting','analysing','resumed'].includes(state) && !S.aed){ S.aed=true; S.tAed=(now()-S.cprStart)/1000; }
+    if(quietSec) S.quietUntil=now()+quietSec*1000;
+    if(!changed || !reply) return true;            // zelfde stap nog eens gehoord (of AED zelf): niets zeggen
+    addMsg('me', first); say(reply, startRec); return true;
+  };
+  // weer normaal ademen / bijkomen
+  if(/ademt (weer|normaal)|wordt wakker|komt bij|beweegt (weer)?|ogen open|hoest/.test(m) && !/niet/.test(m))
+    return go('rosc',
+      'Kijk goed: ademt {hij} normaal? Laat {hem} dan op de rug liggen en laat de AED aangesloten. Blijf bij {hem} en controleer steeds de ademhaling. Stopt het normale ademen, begin dan direct weer met reanimeren.', 0, true);
+  // ritmecheck / analyse: stil
+  if(/ritme|analys|hartritme|niet aanraken|niemand aanraken|handen (los|eraf|weg)|iedereen los|los van|we stoppen even|schok geadviseerd|laadt op|opladen/.test(m) && !/geen schok/.test(m))
+    return go('analysing', null, 20);
+  // schok gegeven of geen schok
+  if(/geen schok/.test(m)) return go('resumed','Goed. Ga direct weer door met drukken, zoals de AED zegt.', 3);
+  if(/(schok|shock).{0,20}(gegeven|toegediend|gedaan|geweest)|(gegeven|gedaan).{0,10}(schok|shock)|geschokt/.test(m))
+    return go('resumed','Goed. Ga direct weer door met drukken, zoals de AED zegt.', 3);
+  // weer verder met drukken
+  if(/we (gaan )?(weer )?(verder|door)|hervat|weer (aan het )?drukken|begin(nen)? weer|weer gestart/.test(m) && st!=='none' && st!=='fetching')
+    return go('resumed','Goed zo. Volg de AED, ik blijf aan de lijn.');
+  // aansluiten / plakken
+  if(/aansluit|sluit(en)?.{0,20}\baan\b|aangesloten|plak|geplakt|elektrode|pads|plakker|zet (hem|de aed) aan|aangezet|staat aan|aan het aanzetten|bloot|ontbloot|shirt (open|uit)|knip/.test(m) && (aedWord || st!=='none'))
+    return go('connecting','Goed. Ga door met drukken terwijl de elektroden worden geplakt. Daarna volgt u de AED, ik ben stil zodat u de AED goed hoort.', 25);
+  if(!aedWord) return false;
+  // vragen over de AED (zolang die er nog niet is)
+  if(!S.aed && /waar blijft|komt (er )?(de |een )?(aed|a e d)|(aed|a e d).{0,10}(onderweg|komen)|hebben jullie|stuurt u|stuur je|is er een/.test(m)){
+    S.aedState = st==='fetching' ? 'fetching' : 'asked'; addMsg('me', first);
+    say(st==='fetching' ? 'De AED wordt gehaald. Zeg het als hij er is. {door}'
+      : S.noAed ? 'Er is helaas geen AED in de buurt beschikbaar. De ambulance neemt er een mee. {door}'
+      : 'Er zijn burgerhulpverleners met een AED onderweg. Is er in het gebouw een AED, laat die dan halen. {door}', startRec);
+    return true;
+  }
+  // wordt gehaald
+  if(/haal|gehaald|ophalen|rent|loopt|gaat .{0,10}(halen|pakken)|pakt/.test(m))
+    return go('fetching','Goed dat er een AED wordt gehaald. {door} Zeg het als de AED er is.', 0, true);
+  // is er
+  if(/(is|zijn) (er|hier|binnen|aangekomen|gearriveerd|gebracht)|hebben (een|de)|ligt (hier|er)|we hebben|staat hier|is gekomen/.test(m) || ((st==='fetching'||st==='asked') && tokens(m).length<=4))
+    return go('present','Goed. Zet de AED aan en volg de gesproken instructies. Ga door met drukken terwijl de elektroden worden geplakt.', 15, true);
+  return false;
+}
 function startCpr(acks){
   S.phase='cpr-intro'; S.tHelp=elapsed(); S.cprBefore=S.slots.cpr;
   startMetronome();
   let how;
-  if(S.slots.cpr) how='Ga door met drukken. U doet het goed.';
+  if(S.slots.cpr && S.knows!==false) how='Goed, gaat u door. U doet het goed.';
   else if(S.knows) how='Goed. Begint u maar, ik blijf aan de lijn.';
   else how='Ik help u. Leg uw handen op elkaar, midden op de borst. Druk met gestrekte armen vijf tot zes centimeter diep, ongeveer twee keer per seconde, en laat de borst steeds helemaal terugkomen. Begin nu.';
   const send = S.aed ? 'Ik stuur twee ambulances. Fijn dat de AED er al is: volg de instructies van de AED.'
+             : S.aedState==='fetching' ? 'Ik stuur twee ambulances en ook burgerhulpverleners. Goed dat er al een AED wordt gehaald.'
              : S.noAed ? 'Ik stuur twee ambulances. Er is op dit moment helaas geen AED in de buurt beschikbaar, de ambulance neemt er een mee.'
              : 'Ik stuur twee ambulances en burgerhulpverleners met een AED.';
   const spk = S.speaker ? [] : ['Zet uw telefoon op de luidspreker en leg hem naast u neer.'];
   const two = S.two ? ['U bent met z\'n tweeën: wissel elke twee minuten van wie er drukt, zonder pauze.'] : [];
-  const tail = (S.aed||S.noAed) ? 'Ik blijf aan de lijn.' : 'Zeg het als de AED er is. Ik blijf aan de lijn.';
+  const tail = (S.aed||(S.noAed&&S.aedState!=='fetching')) ? 'Ik blijf aan de lijn.' : 'Zeg het als de AED er is. Ik blijf aan de lijn.';
   say([...acks, send, ...spk, how, ...two, tail].join(' '), ()=>{
     S.phase='cpr'; S.cprStart=now();
-    COACH.forEach(([sec,t])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking && !S.cprQ) say(t, startRec); }, sec*1000));
+    COACH.forEach(([sec,t])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking && !S.cprQ && !quiet()) say(t, startRec); }, sec*1000));
     later(()=>finish(false), CPR_MAX*1000);
     later(ambulanceArrives, Math.max(20, AMBULANCE_NA_MINUTEN*60 - elapsed())*1000);
     askDuring(20, 'phone', 'Voor als de verbinding wegvalt: op welk nummer kan ik u terugbellen?');
@@ -597,35 +656,34 @@ function startCpr(acks){
 function askDuring(sec, key, text, cond){
   later(function tryAsk(){
     if(S.phase!=='cpr' || S.handover || (cond && !cond())) return;
-    if(S.aed && !S.aedEarly) return;         // AED is aan het woord: meldkamer blijft stil
-    if(S.speaking || S.cprQ){ later(tryAsk, 4000); return; }
+    if(S.speaking || S.cprQ || quiet()){ later(tryAsk, 4000); return; }
     S.cprQ=key; say(text, startRec);
     later(()=>{ if(S.cprQ===key) S.cprQ=null; }, 20000); // geen antwoord: vraag laten vallen
   }, sec*1000);
 }
 function handleCpr(first, m){
+  if(aedHandler(m, first)) return;
   if(S.cprQ){
     const key=S.cprQ; S.cprQ=null; addMsg('me', first);
     if(key==='phone'){ S.phoneGiven=/\d|\bnul\b|\bzes\b|\bacht\b|\bnegen\b|\bvijf\b|\bdrie\b|\bvier\b|\bzeven\b|\btwee\b/.test(m);
       S.cprQ='name'; later(()=>{ if(S.cprQ==='name') S.cprQ=null; }, 20000);
       return say(S.phoneGiven?'Dank u. En wat is uw naam?':'Dat is goed. En wat is uw naam?', startRec); }
-    if(key==='name'){ S.nameGiven=true; return say('Dank u. Blijf drukken, u doet het goed.', startRec); }
-    if(key==='what'){ S.what=true; return say('Dank u, dat geef ik door aan de ambulance. Blijf drukken.', startRec); }
-    if(key==='age'){ return say('Dank u. Ga door, de hulp is onderweg.', startRec); }
+    if(key==='name'){ S.nameGiven=true; return say('Dank u. U doet het goed.', startRec); }
+    if(key==='what'){ S.what=true; return say('Dank u, dat geef ik door aan de ambulance.', startRec); }
+    if(key==='age'){ return say('Dank u. De hulp is onderweg.', startRec); }
   }
+  if(quiet()) return; // ritmecheck of plakken: niet door de AED heen praten
   const isQuestion=/^\s*(wat|wanneer|hoe|waar|waarom|wie|moet|mag|kan|kunt|komt|komen|is|zijn|gaat|heeft|hebben|zal|zullen)\b/.test(first.toLowerCase()) || /\?\s*$/.test(first);
   let hit=CPR_REPLIES.find(([re])=>re.test(m));
-  if(hit && hit[2]==='aed' && (S.aed || isQuestion)) hit=null;
   if(!hit){
     if(!isQuestion) return;
-    hit=[null,'Dat weet ik niet precies. Blijf vooral doordrukken, de hulp is onderweg. Ik blijf aan de lijn.'];
+    hit=[null,'Dat weet ik niet precies. De hulp is onderweg en ik blijf aan de lijn. {door}'];
   }
   // na de AED: niet reageren op wat de AED zelf zegt, alleen op de student
   if(S.aed && !isQuestion && hit[0] && !['stop','handover','aedok'].includes(hit[2])) return;
   addMsg('me', first);
   if(hit[2]==='stop'){ S.stoppedEarly=true; return finish(false); }
   if(hit[2]==='handover'){ S.handover=true; S.phase='ending'; stopRec(); return say(hit[1], ()=>{ S.phase='cpr'; finish(true); }); }
-  if(hit[2]==='aed'){ S.aed=true; S.tAed=(now()-S.cprStart)/1000; }
   say(hit[1], startRec);
 }
 setInterval(()=>{
