@@ -135,7 +135,8 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
       </ol>
     </details>
     <div class="group">
-      <p><b>Stemmen</b></p>
+      <p style="display:flex;justify-content:space-between;align-items:center"><b>Stemmen</b><button class="linkish" id="voiceReload" style="margin:0">Opnieuw zoeken</button></p>
+      <p class="small" id="voiceCount" style="margin:-4px 0 8px"></p>
       <p class="small" style="margin:0 0 4px">112-centralist</p>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
         <select id="voiceSel112" class="vsel"></select>
@@ -149,6 +150,7 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
       <p class="small" style="margin-top:8px">Mooiere stem op de iPhone: Instellingen, Toegankelijkheid, Gesproken materiaal, Stemmen, Nederlands. Download daar het liefst twee stemmen met "Verbeterd" of "Premium" (bijvoorbeeld een mannen- en een vrouwenstem) en kies ze hier.</p>
     </div>
     <p class="small" id="supportNote"></p>
+    <p class="small">Vraagt Safari steeds om de microfoon? Tik in de adresbalk op <b>aA</b>, dan <b>Website-instellingen</b>, en zet <b>Microfoon</b> op <b>Sta toe</b>. Dan wordt het niet meer gevraagd.</p>
     <button class="secondary" id="testBtn">Test geluid en microfoon</button>
     <p class="small" id="testOut" aria-live="polite"></p>
     <p class="small" style="text-align:center;margin-top:14px">Echte noodsituatie? <a href="tel:112">Bel 112 met je gewone telefoon</a></p>
@@ -237,13 +239,23 @@ const $ = id => document.getElementById(id);
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const synth = window.speechSynthesis;
 let voice=null;
+const vkey=v=>v.voiceURI||v.name;
+function voiceQuality(v){
+  const n=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase();
+  if(/premium/.test(n)) return 'Premium';
+  if(/enhanced|verbeterd|uitgebreid/.test(n)) return 'Verbeterd';
+  if(/natural|neural|online/.test(n)) return 'Natuurlijk';
+  if(/compact/.test(n)) return 'Standaard';
+  return '';
+}
 function voiceScore(v){
-  const n=(v.name||'').toLowerCase(); let sc=0;
+  const n=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); let sc=0;
   if(v.lang==='nl-NL'||v.lang==='nl_NL') sc+=10; else if((v.lang||'').toLowerCase().startsWith('nl')) sc+=5; else return -1;
   if(/premium/.test(n)) sc+=9; if(/enhanced|verbeterd|uitgebreid/.test(n)) sc+=7;
   if(/natural|neural|online/.test(n)) sc+=7; if(/google/.test(n)) sc+=3;
   if(/claire|xander|fenna|maarten|colette|ellen/.test(n)) sc+=2;
-  if(/compact|eloquence|grandma|grandpa|oma|opa|rocko|shelley|flo|reed|sandy/.test(n)) sc-=6;
+  if(/compact/.test(n)) sc-=3;
+  if(/eloquence|grandma|grandpa|\boma\b|\bopa\b|rocko|shelley|\bflo\b|\breed\b|sandy|eddy/.test(n)) sc-=6;
   return sc;
 }
 function nlVoices(){ return synth ? synth.getVoices().filter(v=>voiceScore(v)>=0).sort((a,b)=>voiceScore(b)-voiceScore(a)) : []; }
@@ -251,21 +263,23 @@ let voice112=null;
 function pickVoice(){
   if(!synth) return; const vs=nlVoices(); let s112=null, sAmb=null;
   try{ s112=localStorage.getItem('stem112'); sAmb=localStorage.getItem('stemAmb')||localStorage.getItem('meldkamerStem'); }catch(e){}
-  voice = vs.find(v=>v.name===sAmb) || vs[0] || null;
-  voice112 = vs.find(v=>v.name===s112) || vs.find(v=>!voice || v.name!==voice.name) || voice;
+  const pick=k=>vs.find(v=>vkey(v)===k||v.name===k);
+  voice = pick(sAmb) || vs[0] || null;
+  voice112 = pick(s112) || vs.find(v=>!voice || v.name!==voice.name) || voice;
   [['voiceSel112',voice112],['voiceSelAmb',voice]].forEach(([id,cur])=>{
     const sel=document.getElementById(id); if(!sel) return; sel.innerHTML='';
-    vs.forEach(v=>{ const o=document.createElement('option'); o.value=v.name; o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim(); if(cur&&v.name===cur.name) o.selected=true; sel.appendChild(o); });
+    vs.forEach(v=>{ const o=document.createElement('option'); o.value=vkey(v); const q=voiceQuality(v); o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim()+(q?' ('+q+')':'')+((v.lang||'').toLowerCase().includes('be')?', Vlaams':''); if(cur&&vkey(v)===vkey(cur)) o.selected=true; sel.appendChild(o); });
+    const cnt=document.getElementById('voiceCount'); if(cnt) cnt.textContent=vs.length+' Nederlandse stem'+(vs.length===1?'':'men')+' gevonden.';
     if(!vs.length){ const o=document.createElement('option'); o.textContent='Geen Nederlandse stem gevonden'; sel.appendChild(o); }
   });
 }
 // dezelfde stem voor beide? Dan klinkt de centralist iets lager, zodat je het verschil hoort
 function roleVoice(role){
   const v = role==='112' ? voice112 : voice;
-  const same = voice112 && voice && voice112.name===voice.name;
+  const same = voice112 && voice && vkey(voice112)===vkey(voice);
   return { v, pitch: same ? (role==='112' ? 0.8 : 1.12) : 1 };
 }
-if(synth){ setTimeout(pickVoice,0); synth.onvoiceschanged=pickVoice; }
+if(synth){ [0,400,1500,4000].forEach(t=>setTimeout(pickVoice,t)); synth.onvoiceschanged=pickVoice; }
 $('supportNote').textContent = SR
   ? 'Zet het volume hoog. De meldkamer luistert als het bolletje groen is.'
   : 'Deze browser ondersteunt geen spraakherkenning. Gebruik Safari op de iPhone of Chrome op Android.';
@@ -871,6 +885,14 @@ function renderDial(){ $('dialNum').textContent=dialed; $('delBtn').classList.to
 $('delBtn').onclick=()=>{ dialed=dialed.slice(0,-1); renderDial(); };
 function show(id){ ['intro','dialer','call','result'].forEach(s=>$(s).classList.toggle('hidden', s!==id));
   document.body.dataset.screen=id; window.scrollTo(0,0); }
+// Toestemming voor microfoon en spraakherkenning al vragen bij het kiezen van een scenario,
+// zodat er tijdens het gesprek geen melding meer in beeld komt.
+let micWarm=false;
+async function warmupMic(){
+  if(micWarm || !SR) return; micWarm=true;
+  try{ if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){ const st=await navigator.mediaDevices.getUserMedia({audio:true}); st.getTracks().forEach(t=>t.stop()); } }catch(e){}
+  try{ const r=new SR(); r.lang='nl-NL'; r.onerror=()=>{}; r.onend=()=>{}; r.start(); setTimeout(()=>{ try{ r.abort(); }catch(e){} }, 600); }catch(e){}
+}
 function renderList(){
   const L=$('scList'); L.innerHTML='';
   SCENARIOS.forEach((sc,i)=>{
@@ -879,7 +901,7 @@ function renderList(){
     b.querySelector('.num').textContent=i+1;
     b.querySelector('b').textContent=sc.naam||'Nog in te vullen';
     b.querySelector('.txt span').textContent=sc.adres ? sc.adres+'. Ambulance na '+(sc.ambulanceNa||AMBULANCE_NA_MINUTEN+':00') : 'Beschikbaar voor een nieuw adres';
-    b.onclick=()=>{ SC=sc; dialed=''; renderDial(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
+    b.onclick=()=>{ SC=sc; dialed=''; renderDial(); warmupMic(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
     L.appendChild(b);
   });
 }
@@ -913,13 +935,14 @@ $('spkBtn').onclick=()=>setSpeaker(!S.speaker);
 $('endBtn').onclick=()=>{ S.stoppedEarly=true; if(S.phase==='idle'||S.phase==='connecting'){ S.phase='done'; stopRec(); S.timers.forEach(clearTimeout); setVolume(1); show('dialer'); return; } finish(false); };
 $('againBtn').onclick=()=>show('intro');
 function hookVoice(selId, testId, key, role, sample){
-  $(selId).onchange=e=>{ const v=nlVoices().find(x=>x.name===e.target.value); if(!v) return;
-    if(role==='112') voice112=v; else voice=v; try{ localStorage.setItem(key, v.name); }catch(err){} };
+  $(selId).onchange=e=>{ const v=nlVoices().find(x=>vkey(x)===e.target.value); if(!v) return;
+    if(role==='112') voice112=v; else voice=v; try{ localStorage.setItem(key, vkey(v)); }catch(err){} };
   $(testId).onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance(sample); u.lang='nl-NL';
     const rv=roleVoice(role); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; synth.speak(u); };
 }
 hookVoice('voiceSel112','voiceTest112','stem112','112','één één twee. Heeft u politie, brandweer of ambulance nodig?');
-hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Wat is het adres van het noodgeval?');
+hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Waar bent u precies? Noem straat, huisnummer en plaats.');
+$('voiceReload').onclick=()=>{ pickVoice(); setTimeout(pickVoice,800); };
 $('testBtn').onclick=()=>{
   const out=$('testOut'); audio(); setVolume(1);
   beep(425,0.6,0.35);
