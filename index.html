@@ -211,20 +211,27 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
    Laat 'naam' leeg ('') voor een plek die nog niet in gebruik is.
    ===================================================================== */
 const SCENARIOS = [
-  { naam:'De Haagse Hogeschool', adres:'Johanna Westerdijkplein 75, Den Haag',
+  { naam:'De Haagse Hogeschool, kort', adres:'Johanna Westerdijkplein 75, Den Haag',
     herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
     bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.',
     // soms leest de meldkamer het adres ter controle voor, en soms bewust met een fout
     controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
-    controleFout:'Zei u de Westerdijkstraat in Den Haag?' },
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+    controleFout:'Zei u de Westerdijkstraat in Den Haag?',
+    ambulanceNa:'3:15' },   // ambulance na 3:15 (vanaf het opnemen)
+  { naam:'De Haagse Hogeschool, lang', adres:'Johanna Westerdijkplein 75, Den Haag',
+    herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
+    bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.',
+    // soms leest de meldkamer het adres ter controle voor, en soms bewust met een fout
+    controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
+    controleFout:'Zei u de Westerdijkstraat in Den Haag?',
+    ambulanceNa:'6:00' },   // ambulance na 6:00
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' }
 ];
 let SC = SCENARIOS[0];
-const AMBULANCE_NA_MINUTEN = 8;   // na hoeveel minuten (vanaf het bellen) de ambulance hoorbaar aankomt
+const AMBULANCE_NA_MINUTEN = 8;   // standaard aanrijtijd als een locatie geen eigen 'ambulanceNa' heeft
 const VRAAG_WAT_NA_SECONDEN = 80; // wanneer de meldkamer vraagt wat er gebeurd is (tijdens het reanimeren)
 const $ = id => document.getElementById(id);
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -529,12 +536,16 @@ function siren(seconds){
   for(let t=0;t<seconds;t+=1.3){ o.frequency.setValueAtTime(440,t0+t); o.frequency.setValueAtTime(587,t0+t+0.65); }
   o.connect(f); f.connect(g); g.connect(out()); o.start(t0); o.stop(t0+seconds);
 }
+const SIREN=28; // de sirene is 28 seconden hoorbaar en is op de aanrijtijd het hardst
+function arriveSec(){
+  const t=SC.ambulanceNa; if(!t) return AMBULANCE_NA_MINUTEN*60;
+  const [mm,ss]=String(t).split(':').map(Number); return mm*60+(ss||0);
+}
 function ambulanceArrives(){
   if(S.phase!=='cpr' || S.handover) return;
-  const SIREN=28;
   siren(SIREN);
   later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say('Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. Ga door tot het ambulanceteam het overneemt.', startRec); }, 12000);
-  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say('De ambulance is bij u. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+20)*1000);
+  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()){ later(t,3000); return; } say('De ambulance is bij u. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+10)*1000);
 }
 const CPR_MAX=12*60; // veiligheidsgrens: na 12 minuten stopt de oefening vanzelf
 const COACH=[
@@ -646,7 +657,7 @@ function startCpr(acks){
     S.phase='cpr'; S.cprStart=now();
     COACH.forEach(([sec,t])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking && !S.cprQ && !quiet()) say(t, startRec); }, sec*1000));
     later(()=>finish(false), CPR_MAX*1000);
-    later(ambulanceArrives, Math.max(20, AMBULANCE_NA_MINUTEN*60 - elapsed())*1000);
+    later(ambulanceArrives, Math.max(5, arriveSec() - SIREN - elapsed())*1000);
     askDuring(20, 'phone', 'Voor als de verbinding wegvalt: op welk nummer kan ik u terugbellen?');
     askDuring(VRAAG_WAT_NA_SECONDEN, 'what', 'Weet u wat er gebeurd is?', ()=>!S.what);
     if(S.askAge) askDuring(150, 'age', 'Hoe oud is {hij} ongeveer?');
@@ -805,8 +816,8 @@ function renderList(){
     b.innerHTML='<span class="num"></span><span class="txt"><b></b><span></span></span><span class="chev" aria-hidden="true">›</span>';
     b.querySelector('.num').textContent=i+1;
     b.querySelector('b').textContent=sc.naam||'Nog in te vullen';
-    b.querySelector('.txt span').textContent=sc.adres||'Beschikbaar voor een nieuw adres';
-    b.onclick=()=>{ SC=sc; dialed=''; renderDial(); $('dialLoc').textContent='📍 '+sc.naam+', '+sc.adres; show('dialer'); };
+    b.querySelector('.txt span').textContent=sc.adres ? sc.adres+'. Ambulance na '+(sc.ambulanceNa||AMBULANCE_NA_MINUTEN+':00') : 'Beschikbaar voor een nieuw adres';
+    b.onclick=()=>{ SC=sc; dialed=''; renderDial(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
     L.appendChild(b);
   });
 }
