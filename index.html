@@ -50,6 +50,8 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offse
 .row:disabled{cursor:default;opacity:.55} .row:disabled .num{background:var(--muted)}
 .loc{font-size:14px;color:var(--muted);text-align:center;margin-top:4px}
 details.group summary{font-weight:600}
+.vsel{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.vtest{width:auto!important;margin:0!important;padding:8px 14px!important}
 .secondary{display:block;width:100%;border:0;border-radius:14px;background:var(--surface);color:var(--blue);font-weight:600;padding:14px;cursor:pointer;margin-bottom:6px}
 #testOut{min-height:1.2em;margin:0 0 12px}
 .small a{color:var(--bad);font-weight:600}
@@ -133,12 +135,18 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
       </ol>
     </details>
     <div class="group">
-      <p><b>Stem van de meldkamer</b></p>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="voiceSel" style="flex:1;min-width:0;font:inherit;font-size:15px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"></select>
-        <button class="secondary" id="voiceTest" style="width:auto;margin:0;padding:8px 14px">Luister</button>
+      <p><b>Stemmen</b></p>
+      <p class="small" style="margin:0 0 4px">112-centralist</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <select id="voiceSel112" class="vsel"></select>
+        <button class="secondary vtest" id="voiceTest112">Luister</button>
       </div>
-      <p class="small" style="margin-top:8px">Mooiere stem op de iPhone: Instellingen, Toegankelijkheid, Gesproken materiaal, Stemmen, Nederlands. Download daar een stem met "Verbeterd" of "Premium" en kies hem hier.</p>
+      <p class="small" style="margin:0 0 4px">Meldkamer ambulance</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="voiceSelAmb" class="vsel"></select>
+        <button class="secondary vtest" id="voiceTestAmb">Luister</button>
+      </div>
+      <p class="small" style="margin-top:8px">Mooiere stem op de iPhone: Instellingen, Toegankelijkheid, Gesproken materiaal, Stemmen, Nederlands. Download daar het liefst twee stemmen met "Verbeterd" of "Premium" (bijvoorbeeld een mannen- en een vrouwenstem) en kies ze hier.</p>
     </div>
     <p class="small" id="supportNote"></p>
     <button class="secondary" id="testBtn">Test geluid en microfoon</button>
@@ -205,14 +213,19 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
 const SCENARIOS = [
   { naam:'De Haagse Hogeschool', adres:'Johanna Westerdijkplein 75, Den Haag',
     herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
-    bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.' },
-  { naam:'', adres:'', herken:[], bevestig:'' },
-  { naam:'', adres:'', herken:[], bevestig:'' },
-  { naam:'', adres:'', herken:[], bevestig:'' },
-  { naam:'', adres:'', herken:[], bevestig:'' },
-  { naam:'', adres:'', herken:[], bevestig:'' }
+    bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.',
+    // soms leest de meldkamer het adres ter controle voor, en soms bewust met een fout
+    controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
+    controleFout:'Zei u de Westerdijkstraat in Den Haag?' },
+  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' }
 ];
 let SC = SCENARIOS[0];
+const AMBULANCE_NA_MINUTEN = 8;   // na hoeveel minuten (vanaf het bellen) de ambulance hoorbaar aankomt
+const VRAAG_WAT_NA_SECONDEN = 80; // wanneer de meldkamer vraagt wat er gebeurd is (tijdens het reanimeren)
 const $ = id => document.getElementById(id);
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const synth = window.speechSynthesis;
@@ -227,14 +240,23 @@ function voiceScore(v){
   return sc;
 }
 function nlVoices(){ return synth ? synth.getVoices().filter(v=>voiceScore(v)>=0).sort((a,b)=>voiceScore(b)-voiceScore(a)) : []; }
+let voice112=null;
 function pickVoice(){
-  if(!synth) return; const vs=nlVoices(); let saved=null;
-  try{ saved=localStorage.getItem('meldkamerStem'); }catch(e){}
-  voice = vs.find(v=>v.name===saved) || vs[0] || null;
-  const sel=document.getElementById('voiceSel'); if(!sel) return;
-  sel.innerHTML='';
-  vs.forEach(v=>{ const o=document.createElement('option'); o.value=v.name; o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim(); if(voice&&v.name===voice.name) o.selected=true; sel.appendChild(o); });
-  if(!vs.length){ const o=document.createElement('option'); o.textContent='Geen Nederlandse stem gevonden'; sel.appendChild(o); }
+  if(!synth) return; const vs=nlVoices(); let s112=null, sAmb=null;
+  try{ s112=localStorage.getItem('stem112'); sAmb=localStorage.getItem('stemAmb')||localStorage.getItem('meldkamerStem'); }catch(e){}
+  voice = vs.find(v=>v.name===sAmb) || vs[0] || null;
+  voice112 = vs.find(v=>v.name===s112) || vs.find(v=>!voice || v.name!==voice.name) || voice;
+  [['voiceSel112',voice112],['voiceSelAmb',voice]].forEach(([id,cur])=>{
+    const sel=document.getElementById(id); if(!sel) return; sel.innerHTML='';
+    vs.forEach(v=>{ const o=document.createElement('option'); o.value=v.name; o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim(); if(cur&&v.name===cur.name) o.selected=true; sel.appendChild(o); });
+    if(!vs.length){ const o=document.createElement('option'); o.textContent='Geen Nederlandse stem gevonden'; sel.appendChild(o); }
+  });
+}
+// dezelfde stem voor beide? Dan klinkt de centralist iets lager, zodat je het verschil hoort
+function roleVoice(role){
+  const v = role==='112' ? voice112 : voice;
+  const same = voice112 && voice && voice112.name===voice.name;
+  return { v, pitch: same ? (role==='112' ? 0.8 : 1.12) : 1 };
 }
 if(synth){ setTimeout(pickVoice,0); synth.onvoiceschanged=pickVoice; }
 $('supportNote').textContent = SR
@@ -287,12 +309,17 @@ function stopMetronome(){ clearInterval(S.beatId); S.beatId=null; }
 
 /* ---------------- speech out ---------------- */
 function say(text, then){
+  const zij=S.pron==='zij';
+  text=text.replace(/\{hij\}/g,zij?'zij':'hij').replace(/\{hem\}/g,zij?'haar':'hem').replace(/\{zijn\}/g,zij?'haar':'zijn');
   addMsg('disp', text);
   stopRec(); S.speaking=true; setInd('talk','Meldkamer spreekt…');
-  const done=()=>{ if(!S.speaking) return; S.speaking=false; if(S.phase!=='done' && then) then(); };
+  // elke zin krijgt een eigen nummer, zodat een oude zin nooit nog een keer het vervolg start
+  const id=S.sayId=(S.sayId||0)+1;
+  let fired=false;
+  const done=()=>{ if(fired || S.sayId!==id) return; fired=true; S.speaking=false; if(S.phase!=='done' && then) then(); };
   if(!synth){ setTimeout(done,500); return; }
   synth.cancel();
-  const u=new SpeechSynthesisUtterance(text.replace(/\b112\b/g,'één één twee')); u.lang='nl-NL'; if(voice) u.voice=voice; u.rate=1.08; u.volume=S.speaker?1:0.25;
+  const u=new SpeechSynthesisUtterance(text.replace(/\b112\b/g,'één één twee')); u.lang='nl-NL'; const rv=roleVoice(S.role||'112'); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; u.volume=S.speaker?1:0.25;
   u.onend=done; u.onerror=done; later(done, 1800+text.length*85);
   synth.speak(u);
 }
@@ -342,8 +369,9 @@ const Q={
   opening:{ ask:'112. Heeft u politie, brandweer of ambulance nodig?', short:'Politie, brandweer of ambulance?' },
   address:{ ask:'Wat is het adres? Straat, huisnummer en plaats.', short:'Wat is het adres?' },
   ambOpen:{ ask:'Meldkamer ambulance. Wat is het adres van het noodgeval?', short:'Wat is het adres?' },
-  unresp:{ ask:'Reageert hij als u hem aanspreekt en aan zijn schouders schudt?', short:'Reageert hij?' },
-  breath:{ ask:'Ademt hij normaal?', short:'Ademt hij normaal?' },
+  unresp:{ ask:'Reageert {hij} als u {hem} aanspreekt en aan {zijn} schouders schudt?', short:'Reageert {hij}?' },
+  breath:{ ask:'Ademt {hij} normaal?', short:'Ademt {hij} normaal?' },
+  confirm:{ ask:'Klopt het adres?', short:'Klopt het adres?' },
   know:{ ask:'U gaat reanimeren. Weet u hoe dat moet?', short:'Weet u hoe u moet reanimeren?' }
 };
 function nextQ(){
@@ -376,6 +404,9 @@ function extract(m, isOpening){
   if(!S.slots.cpr && /reanim|hartmassage|borstcompressie|ik druk|ik ben aan het drukken|begonnen|gestart/.test(m)){ S.slots.cpr=true; got.push('cpr'); startMetronome(); }
   if(!S.aed && /\baed\b|a e d|a\.e\.d|defibrillator|hartstarter/.test(m) && !/stuur|komt|onderweg|waar|halen|geen/.test(m)){ S.aed=true; S.aedEarly=true; got.push('aed'); }
   if(!S.two && /met z.?n twee|met ons twee|tweede|collega|we zijn met twee|nog iemand|iemand bij me|iemand helpt/.test(m)){ S.two=true; got.push('two'); }
+  if(!S.pron && /vrouw|mevrouw|meisje|dame|\bzij\b|\bze\b|\bhaar\b/.test(m)) S.pron='zij';
+  if(!S.pron && /\bman\b|meneer|jongen|\bhij\b|\bhem\b/.test(m)) S.pron='hij';
+  if(!S.what && /fiets|gevallen|viel|val |in elkaar|zakte|onwel|flauw|botsing|aangereden|sport|pijn op de borst|opeens|plotseling/.test(m)){ S.what=true; }
   if(isOpening) got.forEach(k=>S.vol[k]=true);
   return got;
 }
@@ -420,7 +451,7 @@ function service(m){
     S.busy=true; setInd('talk','Doorverbinden…'); ring();
     later(()=>{
       if(S.phase!=='questions') return;
-      S.firstAmb=true;
+      S.firstAmb=true; S.role='amb';
       if(!S.slots.address) return ask('ambOpen');
       $('callTitle').textContent='Meldkamer ambulance';
       const next=nextQ(), pre='Meldkamer ambulance. '+SC.bevestig;
@@ -436,7 +467,7 @@ function respond(m, q){
   if(q==='unresp' && !S.slots.unresp){
     if(/\bnee\b|\bniet\b|\bgeen\b|nop/.test(m)){ S.slots.unresp=true; }
     else if(/\bja\b|\bwel\b/.test(m)){ S.wrongUnresp=true; note('Hij reageerde niet op aanspreken en schudden.');
-      return say('Controleer het nog een keer: schud stevig aan zijn schouders. Reageert hij?', listenQ); }
+      return say('Controleer het nog een keer: schud stevig aan {zijn} schouders. Reageert {hij}?', listenQ); }
   }
   if(q==='breath' && !S.slots.noBreath){
     if(/\bnee\b|\bniet\b|\bgeen\b|hap|snurk|gasp|raar|vreemd|weet (het )?niet|twijfel/.test(m)){ S.slots.noBreath=true; }
@@ -453,7 +484,20 @@ function respond(m, q){
   if(q==='know' && S.knows===undefined){
     S.knows = !/\bnee\b|weet (ik )?niet|geen idee|niet zeker|nooit|vergeten|help me/.test(m);
   }
-  if(got.includes('address')) acks.push(SC.bevestig);
+  if(q==='confirm'){
+    const no=/\bnee\b|klopt niet|niet goed|verkeerd|\bplein\b/.test(m), yes=/\bja\b|klopt|correct|juist|dat is goed/.test(m);
+    if(S.confirmPlan==='wrong'){
+      if(no){ S.confirmOk=true; acks.push('Excuses, het '+SC.adres.split(',')[0]+'. Genoteerd.'); }
+      else { S.confirmOk=false; note('De meldkamer herhaalde het adres verkeerd. Luister goed en verbeter het meteen.'); }
+    } else { S.confirmOk = yes || !no; }
+  }
+  if(got.includes('address')){
+    if(S.confirmPlan && !S.confirmAsked && SC.controleGoed && SC.controleFout){
+      S.confirmAsked=true; S.pendingQ='confirm'; S.reprompts=0;
+      return say([...acks, S.confirmPlan==='wrong'?SC.controleFout:SC.controleGoed].join(' '), listenQ);
+    }
+    acks.push(SC.bevestig);
+  }
   if(got.includes('cpr')) acks.push('U bent al gestart met reanimeren, heel goed.');
 
   const next=nextQ();
@@ -469,6 +513,24 @@ function respond(m, q){
 }
 
 /* ---------------- reanimatie ---------------- */
+function siren(seconds){
+  // Nederlandse twee-tonige sirene, begint heel zacht (ver weg) en wordt steeds harder
+  if(!actx) return;
+  const t0=actx.currentTime, o=actx.createOscillator(), f=actx.createBiquadFilter(), g=actx.createGain();
+  o.type='triangle'; f.type='lowpass';
+  f.frequency.setValueAtTime(700,t0); f.frequency.linearRampToValueAtTime(3500,t0+seconds);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.45,t0+seconds*0.9);
+  g.gain.linearRampToValueAtTime(0.0001,t0+seconds);
+  for(let t=0;t<seconds;t+=1.3){ o.frequency.setValueAtTime(440,t0+t); o.frequency.setValueAtTime(587,t0+t+0.65); }
+  o.connect(f); f.connect(g); g.connect(out()); o.start(t0); o.stop(t0+seconds);
+}
+function ambulanceArrives(){
+  if(S.phase!=='cpr' || S.handover) return;
+  const SIREN=28;
+  siren(SIREN);
+  later(()=>{ if(S.phase==='cpr' && !S.handover) say('Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. U blijft drukken tot zij het overnemen.', startRec); }, 12000);
+  later(()=>{ if(S.phase==='cpr' && !S.handover) say('De ambulance is bij u. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', ()=>{ S.handover=true; finish(true); }); }, (SIREN+20)*1000);
+}
 const CPR_MAX=12*60; // veiligheidsgrens: na 12 minuten stopt de oefening vanzelf
 const COACH=[
   [30,'U doet het heel goed. Blijf stevig en snel doordrukken.'],
@@ -502,7 +564,7 @@ const CPR_REPLIES=[
   [/bedankt|dank je|dank u/, 'Graag gedaan. Blijf doorgaan, u doet het goed.', 'aedok'],
   [/overne|wissel|afloss|neemt het|nemen het/, 'Goed. Wissel snel en ga meteen door, zonder pauze.', 'aedok'],
   [/moe|kan niet meer|zwaar/, 'Dat is heel normaal. Is er iemand die het kan overnemen? Wissel dan zonder pauze. Anders: houd vol, u doet het heel goed.', 'aedok'],
-  [/beweegt|wakker|hoest|ogen open|\breageert\b|ademt weer/, 'Kijk kort: ademt hij nu normaal? Zo niet, ga direct door met drukken.'],
+  [/beweegt|wakker|hoest|ogen open|\breageert\b|ademt weer/, 'Kijk kort: ademt {hij} nu normaal? Zo niet, ga direct door met drukken.'],
   [/hoe lang|wanneer|ambulance|komt er/, 'Er zijn twee ambulances onderweg. Ga door tot de hulpverleners het van u overnemen.'],
   [/hoe diep|hoe hard|hoe snel|doe ik het goed|klopt het/, 'Midden op de borst, vijf tot zes centimeter diep, ongeveer twee keer per seconde. Laat de borst steeds helemaal terugkomen.'],
   [/rib|kraak|knap/, 'Dat kan gebeuren. Ga gewoon door met drukken, dat is nu het belangrijkste.'],
@@ -516,18 +578,41 @@ function startCpr(acks){
   else if(S.knows) how='Goed. Begint u maar, ik blijf aan de lijn.';
   else how='Ik help u. Leg uw handen op elkaar, midden op de borst. Druk met gestrekte armen vijf tot zes centimeter diep, ongeveer twee keer per seconde, en laat de borst steeds helemaal terugkomen. Begin nu.';
   const send = S.aed ? 'Ik stuur twee ambulances. Fijn dat de AED er al is: volg de instructies van de AED.'
-                     : 'Ik stuur twee ambulances en burgerhulpverleners met een AED.';
+             : S.noAed ? 'Ik stuur twee ambulances. Er is op dit moment helaas geen AED in de buurt beschikbaar, de ambulance neemt er een mee.'
+             : 'Ik stuur twee ambulances en burgerhulpverleners met een AED.';
   const spk = S.speaker ? [] : ['Zet uw telefoon op de luidspreker en leg hem naast u neer.'];
   const two = S.two ? ['U bent met z\'n tweeën: wissel elke twee minuten van wie er drukt, zonder pauze.'] : [];
-  const tail = S.aed ? 'Ik blijf aan de lijn.' : 'Zeg het als de AED er is. Ik blijf aan de lijn.';
+  const tail = (S.aed||S.noAed) ? 'Ik blijf aan de lijn.' : 'Zeg het als de AED er is. Ik blijf aan de lijn.';
   say([...acks, send, ...spk, how, ...two, tail].join(' '), ()=>{
     S.phase='cpr'; S.cprStart=now();
-    COACH.forEach(([sec,t])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking) say(t, startRec); }, sec*1000));
+    COACH.forEach(([sec,t])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking && !S.cprQ) say(t, startRec); }, sec*1000));
     later(()=>finish(false), CPR_MAX*1000);
+    later(ambulanceArrives, Math.max(20, AMBULANCE_NA_MINUTEN*60 - elapsed())*1000);
+    askDuring(20, 'phone', 'Voor als de verbinding wegvalt: op welk nummer kan ik u terugbellen?');
+    askDuring(VRAAG_WAT_NA_SECONDEN, 'what', 'Weet u wat er gebeurd is?', ()=>!S.what);
+    if(S.askAge) askDuring(150, 'age', 'Hoe oud is {hij} ongeveer?');
     startRec();
   });
 }
+function askDuring(sec, key, text, cond){
+  later(function tryAsk(){
+    if(S.phase!=='cpr' || S.handover || (cond && !cond())) return;
+    if(S.aed && !S.aedEarly) return;         // AED is aan het woord: meldkamer blijft stil
+    if(S.speaking || S.cprQ){ later(tryAsk, 4000); return; }
+    S.cprQ=key; say(text, startRec);
+    later(()=>{ if(S.cprQ===key) S.cprQ=null; }, 20000); // geen antwoord: vraag laten vallen
+  }, sec*1000);
+}
 function handleCpr(first, m){
+  if(S.cprQ){
+    const key=S.cprQ; S.cprQ=null; addMsg('me', first);
+    if(key==='phone'){ S.phoneGiven=/\d|\bnul\b|\bzes\b|\bacht\b|\bnegen\b|\bvijf\b|\bdrie\b|\bvier\b|\bzeven\b|\btwee\b/.test(m);
+      S.cprQ='name'; later(()=>{ if(S.cprQ==='name') S.cprQ=null; }, 20000);
+      return say(S.phoneGiven?'Dank u. En wat is uw naam?':'Dat is goed. En wat is uw naam?', startRec); }
+    if(key==='name'){ S.nameGiven=true; return say('Dank u. Blijf drukken, u doet het goed.', startRec); }
+    if(key==='what'){ S.what=true; return say('Dank u, dat geef ik door aan de ambulance. Blijf drukken.', startRec); }
+    if(key==='age'){ return say('Dank u. Ga door, de hulp is onderweg.', startRec); }
+  }
   const isQuestion=/^\s*(wat|wanneer|hoe|waar|waarom|wie|moet|mag|kan|kunt|komt|komen|is|zijn|gaat|heeft|hebben|zal|zullen)\b/.test(first.toLowerCase()) || /\?\s*$/.test(first);
   let hit=CPR_REPLIES.find(([re])=>re.test(m));
   if(hit && hit[2]==='aed' && (S.aed || isQuestion)) hit=null;
@@ -588,6 +673,10 @@ function showResult(aedDone, reachedCpr){
     S.wrongBreath?'Happen of snurken is geen normale ademhaling.':'Hij reageerde niet op aanspreken en schudden.']);
   rows.push(['Luidspreker aangezet', S.tSpeaker!==null?'Na '+fmt(S.tSpeaker):'Niet', cls(S.tSpeaker!==null&&S.tSpeaker<=8, S.tSpeaker!==null),
     'Zet de luidspreker aan zodra je belt, dan heb je je handen vrij voor de reanimatie.']);
+  if(S.confirmPlan==='wrong' && S.confirmAsked) rows.push(['Verkeerd adres verbeterd', S.confirmOk?'Ja':'Nee', cls(S.confirmOk),
+    'De meldkamer las het adres bewust verkeerd voor. Luister goed en verbeter het meteen.']);
+  if(S.phoneGiven!==undefined) rows.push(['Terugbelnummer en naam', (S.phoneGiven?'Nummer':'Geen nummer')+(S.nameGiven?', naam':''), cls(S.phoneGiven&&S.nameGiven, S.phoneGiven||S.nameGiven),
+    'De meldkamer vraagt dit voor als de verbinding wegvalt. Ken je eigen nummer.']);
   rows.push(['Hulp onderweg na', S.tHelp!==null?fmt(S.tHelp):'–', cls(S.tHelp!==null&&S.tHelp<=60, S.tHelp!==null&&S.tHelp<=90), 'Vanaf het bellen tot de meldkamer de ambulance en de AED stuurt.']);
   rows.push(['AED gemeld aan de meldkamer', S.aedEarly?'Al bij de melding':S.aed?'Na '+fmt(S.tAed)+' reanimeren':'Nee', cls(S.aed),
     'Zeg het tegen de meldkamer als de AED er is. De meldkamer wordt dan stil, zodat je de AED goed hoort.']);
@@ -676,7 +765,11 @@ $('dialBtn').onclick=async ()=>{
   $('cprPill').classList.add('hidden'); $('cprTime').textContent='0:00';
   show('call'); setInd('talk','Verbinden…');
   try{ if(navigator.wakeLock) navigator.wakeLock.request('screen').then(w=>S.wake=w).catch(()=>{}); }catch(e){}
-  S.t0=now(); S.tDial=now(); S.phase='connecting'; setSpeaker(false);
+  S.t0=now(); S.tDial=now(); S.phase='connecting'; setSpeaker(false); S.role='112';
+  // variatie per oefening
+  S.noAed = Math.random()<0.25;
+  S.confirmPlan = Math.random()<0.5 ? (Math.random()<0.5 ? 'wrong' : 'right') : null;
+  S.askAge = Math.random()<0.5;
   setInd('talk','Gaat over…');
   // één keer overgaan, dan neemt de centralist op
   later(()=>{
@@ -688,8 +781,14 @@ $('dialBtn').onclick=async ()=>{
 $('spkBtn').onclick=()=>setSpeaker(!S.speaker);
 $('endBtn').onclick=()=>{ S.stoppedEarly=true; if(S.phase==='idle'||S.phase==='connecting'){ S.phase='done'; stopRec(); S.timers.forEach(clearTimeout); setVolume(1); show('dialer'); return; } finish(false); };
 $('againBtn').onclick=()=>show('intro');
-$('voiceSel').onchange=e=>{ const v=nlVoices().find(x=>x.name===e.target.value); if(v){ voice=v; try{ localStorage.setItem('meldkamerStem', v.name); }catch(err){} } };
-$('voiceTest').onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance('Meldkamer ambulance. Wat is het adres van het noodgeval?'); u.lang='nl-NL'; if(voice) u.voice=voice; u.rate=1.08; synth.speak(u); };
+function hookVoice(selId, testId, key, role, sample){
+  $(selId).onchange=e=>{ const v=nlVoices().find(x=>x.name===e.target.value); if(!v) return;
+    if(role==='112') voice112=v; else voice=v; try{ localStorage.setItem(key, v.name); }catch(err){} };
+  $(testId).onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance(sample); u.lang='nl-NL';
+    const rv=roleVoice(role); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; synth.speak(u); };
+}
+hookVoice('voiceSel112','voiceTest112','stem112','112','één één twee. Heeft u politie, brandweer of ambulance nodig?');
+hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Wat is het adres van het noodgeval?');
 $('testBtn').onclick=()=>{
   const out=$('testOut'); audio(); setVolume(1);
   beep(425,0.6,0.35);
