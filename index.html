@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Oefen: 112 bellen bij reanimatie</title>
+<style>
+:root{
+  --pink:#FF4FA0; --bg:#FFFFFF; --surface:#F2F2F7; --ink:#000000; --muted:#6C6C70; --line:#D1D1D6;
+  --key:#E5E5EA; --keybg:#FFFFFF; --green:#65C466; --red:#FF3B30; --ok:#248A3D; --warn:#B25000; --bad:#D70015; --blue:#007AFF;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#000000; --surface:#1C1C1E; --ink:#FFFFFF; --muted:#98989F; --line:#38383A;
+    --key:#333333; --keybg:#1C1C1E; --ok:#30D158; --warn:#FF9F0A; --bad:#FF453A; --blue:#0A84FF; }
+}
+:root[data-theme="dark"]{ --bg:#000000; --surface:#1C1C1E; --ink:#FFFFFF; --muted:#98989F; --line:#38383A;
+  --key:#333333; --keybg:#1C1C1E; --ok:#30D158; --warn:#FF9F0A; --bad:#FF453A; --blue:#0A84FF; }
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,Arial,sans-serif;font-size:17px;line-height:1.4;
+  -webkit-tap-highlight-color:transparent}
+body[data-screen="call"]{background:#12181f}
+/* oefenrand */
+.frame{position:fixed;z-index:50;pointer-events:none;
+  top:env(safe-area-inset-top,0px);bottom:env(safe-area-inset-bottom,0px);left:0;right:0;
+  border:12px solid var(--pink);border-radius:22px}
+.frame-label{position:fixed;z-index:51;pointer-events:none;left:50%;transform:translateX(-50%);
+  top:env(safe-area-inset-top,0px);background:var(--pink);color:#fff;font-size:12px;font-weight:600;
+  padding:1px 12px 4px;border-radius:0 0 10px 10px;white-space:nowrap}
+.screen{height:100%;padding:30px 24px 24px;max-width:520px;margin:0 auto}
+.hidden{display:none!important} .invisible{visibility:hidden}
+button{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+/* uitleg */
+#intro h1{font-size:28px;line-height:1.15;margin:8px 0 14px}
+.group{background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.group p{margin:0 0 8px} .group p:last-child{margin:0}
+.group ol{margin:4px 0 0;padding-left:22px} .group li{margin-bottom:6px}
+.addr{font-weight:700}
+.primary{display:block;width:100%;border:0;border-radius:14px;background:var(--blue);color:#fff;font-weight:600;padding:15px;cursor:pointer}
+.small{font-size:14px;color:var(--muted)}
+.list{background:var(--surface);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:transparent;padding:13px 16px;cursor:pointer;color:var(--ink)}
+.row+.row{border-top:1px solid var(--line)}
+.row .num{width:30px;height:30px;border-radius:8px;background:var(--pink);color:#fff;font-weight:700;display:grid;place-items:center;flex:none}
+.row .txt{flex:1;min-width:0} .row .txt b{display:block;font-weight:600} .row .txt span{display:block;font-size:14px;color:var(--muted)}
+.row .chev{color:var(--muted);font-size:22px}
+.row:disabled{cursor:default;opacity:.55} .row:disabled .num{background:var(--muted)}
+.loc{font-size:14px;color:var(--muted);text-align:center;margin-top:4px}
+details.group summary{font-weight:600}
+.secondary{display:block;width:100%;border:0;border-radius:14px;background:var(--surface);color:var(--blue);font-weight:600;padding:14px;cursor:pointer;margin-bottom:6px}
+#testOut{min-height:1.2em;margin:0 0 12px}
+.small a{color:var(--bad);font-weight:600}
+/* toetsenblok */
+#dialer{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:10px;min-height:100%}
+.dialnum{font-size:40px;font-weight:600;min-height:52px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.dialhint{font-size:14px;color:var(--bad);min-height:20px}
+.keys{display:grid;grid-template-columns:repeat(3,min(22vw,84px));gap:14px min(6vw,26px);margin-top:6px}
+.key{width:min(22vw,84px);aspect-ratio:1;border-radius:50%;border:0;background:var(--keybg);cursor:pointer;
+  box-shadow:0 6px 22px rgba(0,0,0,.07),0 1px 3px rgba(0,0,0,.04);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.key:active{background:var(--key)}
+.key .d{font-size:38px;font-weight:700} .key .l{font-size:11px;font-weight:800;letter-spacing:.14em;margin-top:3px;min-height:11px}
+.dialrow{display:grid;grid-template-columns:repeat(3,min(22vw,84px));gap:min(6vw,26px);align-items:center;justify-items:center;margin-top:14px}
+.tabbar{display:flex;gap:10px;align-items:center;width:100%;margin-top:18px}
+.tabs{flex:1;display:flex;justify-content:space-around;background:var(--keybg);border-radius:999px;padding:6px;
+  box-shadow:0 6px 22px rgba(0,0,0,.07)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;color:var(--ink)}
+.tab.on{background:var(--key);color:var(--blue)}
+.tabsearch{width:58px;height:58px;border-radius:50%;background:var(--keybg);display:grid;place-items:center;box-shadow:0 6px 22px rgba(0,0,0,.07);flex:none}
+.round{width:min(22vw,84px);height:min(22vw,84px);border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;color:#fff}
+.round.go{background:var(--green)} .round.end{background:var(--red)} .round.end svg{transform:rotate(135deg)}
+.del{background:none;border:0;color:var(--ink);cursor:pointer;font-size:14px}
+.linkish{background:none;border:0;color:var(--blue);cursor:pointer;margin-top:8px;font-size:15px}
+/* gesprek */
+#call{color:#fff;display:flex;flex-direction:column;align-items:center;min-height:100%;gap:10px;
+  background:radial-gradient(120% 70% at 50% 0%,#4a5a6e 0%,#26303c 45%,#12181f 100%);margin:-30px -24px -24px;padding:44px 24px 34px}
+.cname{font-size:34px;font-weight:400;margin-top:10px}
+.cstatus{font-size:17px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;margin-top:-6px}
+.pill{display:flex;align-items:center;gap:8px;border:0;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);
+  border-radius:999px;padding:6px 14px;font-size:14px;margin-top:6px}
+.pill .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.4)}
+.pill.on .dot{background:var(--green);animation:pulse 1.2s infinite}
+.pill.talk .dot{background:#64D2FF}
+.pill.off{background:rgba(255,59,48,.3);cursor:pointer} .pill.off .dot{background:var(--red)}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(52,199,89,.25)}}
+.captions{width:100%;flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px;text-align:center;min-height:120px}
+.capd{font-size:20px;line-height:1.35}
+.capm{font-size:15px;color:rgba(255,255,255,.65)}
+.cpr{display:flex;align-items:center;gap:10px;background:rgba(255,59,48,.22);border-radius:999px;padding:6px 16px;font-size:15px}
+.cpr b{font-variant-numeric:tabular-nums}
+.cprdot{width:14px;height:14px;border-radius:50%;background:var(--red);transition:transform .08s}
+.cprdot.beat{transform:scale(1.7)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 22px;margin-top:6px}
+.cb{display:flex;flex-direction:column;align-items:center;gap:6px}
+.cbtn{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;color:#fff}
+.cbtn.active,.cbtn[aria-pressed="true"]{background:#fff;color:#1c1c1e}
+button.cbtn{border:0;cursor:pointer;padding:0}
+.cbl{font-size:13px;color:rgba(255,255,255,.85)}
+.endwrap{margin-top:22px;display:flex;flex-direction:column;align-items:center;gap:6px}
+/* uitslag */
+#result h2{font-size:28px;margin:8px 0 14px}
+.metric{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 0;border-top:1px solid var(--line)}
+.metric:first-of-type{border-top:0;padding-top:0}
+.metric .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.metric .t{grid-column:1/-1;font-size:15px;color:var(--muted)}
+.good{color:var(--ok)} .mid{color:var(--warn)} .bad{color:var(--bad)}
+details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
+#transcript{padding-left:18px;font-size:15px} #transcript li{margin:4px 0}
+.tr-note{color:var(--warn)} .tr-count{color:var(--muted)}
+@media (prefers-reduced-motion: reduce){.pill.on .dot{animation:none}.cprdot{transition:none}}
+</style>
+</head>
+<body>
+<div class="frame" aria-hidden="true"></div>
+<div class="frame-label">Oefenscenario, er wordt niet echt gebeld</div>
+<main class="screen">
+
+  <section id="intro">
+    <h1>Oefen het 112-gesprek tijdens de reanimatie</h1>
+    <p class="small" style="margin:-6px 0 12px">Kies de locatie van de oefening.</p>
+    <div class="list" id="scList"></div>
+    <details class="group">
+      <summary>Zo gaat de oefening</summary>
+      <ol>
+        <li>Spreek het slachtoffer aan en schud aan de schouders. Geen reactie.</li>
+        <li>Toets 112 in, bel en zet de telefoon op de luidspreker. Leg hem naast de pop.</li>
+        <li>Tel hardop tot 10 terwijl je de ademhaling controleert.</li>
+        <li>Vraag om de ambulance, vertel wat er aan de hand is en begin met reanimeren.</li>
+        <li>Zeg "de AED is er" als die aankomt.</li>
+      </ol>
+    </details>
+    <div class="group">
+      <p><b>Stem van de meldkamer</b></p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="voiceSel" style="flex:1;min-width:0;font:inherit;font-size:15px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"></select>
+        <button class="secondary" id="voiceTest" style="width:auto;margin:0;padding:8px 14px">Luister</button>
+      </div>
+      <p class="small" style="margin-top:8px">Mooiere stem op de iPhone: Instellingen, Toegankelijkheid, Gesproken materiaal, Stemmen, Nederlands. Download daar een stem met "Verbeterd" of "Premium" en kies hem hier.</p>
+    </div>
+    <p class="small" id="supportNote"></p>
+    <button class="secondary" id="testBtn">Test geluid en microfoon</button>
+    <p class="small" id="testOut" aria-live="polite"></p>
+    <p class="small" style="text-align:center;margin-top:14px">Echte noodsituatie? <a href="tel:112">Bel 112 met je gewone telefoon</a></p>
+  </section>
+
+  <section id="dialer" class="hidden">
+    <div class="loc" id="dialLoc"></div>
+    <div class="dialnum" id="dialNum" aria-live="polite"></div>
+    <div class="dialhint" id="dialHint"></div>
+    <div class="keys" id="keys"></div>
+    <div class="dialrow">
+      <span></span>
+      <button class="round go" id="dialBtn" aria-label="Bellen"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
+      <button class="del invisible" id="delBtn" aria-label="Wis laatste cijfer"><svg viewBox="0 0 28 20" width="30" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 1h17v18H9L1 10z"/><path d="M13 6l8 8M21 6l-8 8" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="tabbar" aria-hidden="true">
+      <div class="tabs">
+        <span class="tab"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 6.5V12H8" stroke="var(--keybg)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Oproepen</span>
+        <span class="tab"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><circle cx="12" cy="9.5" r="3.3" fill="var(--keybg)"/><path d="M5.8 18.2c1.4-2.3 3.6-3.4 6.2-3.4s4.8 1.1 6.2 3.4" stroke="var(--keybg)" stroke-width="2" fill="none"/></svg>Contacten</span>
+        <span class="tab on"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2.6"/><circle cx="12" cy="5" r="2.6"/><circle cx="19" cy="5" r="2.6"/><circle cx="5" cy="12" r="2.6"/><circle cx="12" cy="12" r="2.6"/><circle cx="19" cy="12" r="2.6"/><circle cx="5" cy="19" r="2.6"/><circle cx="12" cy="19" r="2.6"/><circle cx="19" cy="19" r="2.6"/></svg>Toetsen</span>
+      </div>
+      <span class="tabsearch"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+    </div>
+    <button class="linkish" id="backIntro">Andere locatie kiezen</button>
+  </section>
+
+  <section id="call" class="hidden">
+    <div class="cname" id="callTitle">112</div>
+    <div class="cstatus" id="callStatus">bellen…</div>
+    <button class="pill" id="listenInd" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="listenTxt">Verbinden…</span></button>
+    <div class="captions">
+      <div class="capd" id="capDisp" aria-live="polite"></div>
+      <div class="capm" id="capMe"></div>
+    </div>
+    <div class="cpr hidden" id="cprPill"><span class="cprdot" id="cprDot"></span><span>Reanimatie</span><b id="cprTime">0:00</b></div>
+    <div class="grid">
+      <div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg></span><span class="cbl">geluid uit</span></div><div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><circle cx="6" cy="5" r="1.8"/><circle cx="12" cy="5" r="1.8"/><circle cx="18" cy="5" r="1.8"/><circle cx="6" cy="11" r="1.8"/><circle cx="12" cy="11" r="1.8"/><circle cx="18" cy="11" r="1.8"/><circle cx="6" cy="17" r="1.8"/><circle cx="12" cy="17" r="1.8"/><circle cx="18" cy="17" r="1.8"/><circle cx="12" cy="22" r="1.4"/></svg></span><span class="cbl">toetsen</span></div><div class="cb"><button class="cbtn" id="spkBtn" aria-pressed="false" aria-label="Luidspreker"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button><span class="cbl">luidspreker</span></div>
+      <div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="cbl">voeg toe</span></div><div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg></span><span class="cbl">wacht</span></div><div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-4 4.2-5.5 7.5-5.5s6.3 1.5 7.5 5.5"/></svg></span><span class="cbl">contacten</span></div>
+    </div>
+    <div class="endwrap">
+      <button class="round end" id="endBtn" aria-label="Ophangen en oefening stoppen"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
+    </div>
+  </section>
+
+  <section id="result" class="hidden">
+    <h2>Zo ging het</h2>
+    <div class="group" id="resultBox"></div>
+    <details class="group"><summary>Het hele gesprek teruglezen</summary><ol id="transcript"></ol></details>
+    <button class="primary" id="againBtn">Opnieuw oefenen</button>
+  </section>
+</main>
+<script>
+(function(){
+/* =====================================================================
+   LOCATIES — hier kun je later adressen toevoegen of aanpassen.
+   naam:      wat de student in de lijst ziet
+   adres:     het volledige adres (staat op het toetsenscherm)
+   herken:    woorden waarop de meldkamer het adres goedkeurt (kleine letters)
+   bevestig:  wat de meldkamer terugzegt als het adres goed is
+   Laat 'naam' leeg ('') voor een plek die nog niet in gebruik is.
+   ===================================================================== */
+const SCENARIOS = [
+  { naam:'De Haagse Hogeschool', adres:'Johanna Westerdijkplein 75, Den Haag',
+    herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
+    bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.' },
+  { naam:'', adres:'', herken:[], bevestig:'' },
+  { naam:'', adres:'', herken:[], bevestig:'' },
+  { naam:'', adres:'', herken:[], bevestig:'' },
+  { naam:'', adres:'', herken:[], bevestig:'' },
+  { naam:'', adres:'', herken:[], bevestig:'' }
+];
+let SC = SCENARIOS[0];
+const $ = id => document.getElementById(id);
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+let voice=null;
+function voiceScore(v){
+  const n=(v.name||'').toLowerCase(); let sc=0;
+  if(v.lang==='nl-NL'||v.lang==='nl_NL') sc+=10; else if((v.lang||'').toLowerCase().startsWith('nl')) sc+=5; else return -1;
+  if(/premium/.test(n)) sc+=9; if(/enhanced|verbeterd|uitgebreid/.test(n)) sc+=7;
+  if(/natural|neural|online/.test(n)) sc+=7; if(/google/.test(n)) sc+=3;
+  if(/claire|xander|fenna|maarten|colette|ellen/.test(n)) sc+=2;
+  if(/compact|eloquence|grandma|grandpa|oma|opa|rocko|shelley|flo|reed|sandy/.test(n)) sc-=6;
+  return sc;
+}
+function nlVoices(){ return synth ? synth.getVoices().filter(v=>voiceScore(v)>=0).sort((a,b)=>voiceScore(b)-voiceScore(a)) : []; }
+function pickVoice(){
+  if(!synth) return; const vs=nlVoices(); let saved=null;
+  try{ saved=localStorage.getItem('meldkamerStem'); }catch(e){}
+  voice = vs.find(v=>v.name===saved) || vs[0] || null;
+  const sel=document.getElementById('voiceSel'); if(!sel) return;
+  sel.innerHTML='';
+  vs.forEach(v=>{ const o=document.createElement('option'); o.value=v.name; o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim(); if(voice&&v.name===voice.name) o.selected=true; sel.appendChild(o); });
+  if(!vs.length){ const o=document.createElement('option'); o.textContent='Geen Nederlandse stem gevonden'; sel.appendChild(o); }
+}
+if(synth){ setTimeout(pickVoice,0); synth.onvoiceschanged=pickVoice; }
+$('supportNote').textContent = SR
+  ? 'Zet het volume hoog. De meldkamer luistert als het bolletje groen is.'
+  : 'Deze browser ondersteunt geen spraakherkenning. Gebruik Safari op de iPhone of Chrome op Android.';
+
+/* ---------------- state ---------------- */
+let S;
+function reset(){
+  S={ phase:'idle', t0:0, micOk:!!SR, speaking:false, busy:false, rec:null,
+      heardNumbers:false, sawTen:false, lastSpeech:0, openStart:0, counted:false,
+      slots:{address:null, unresp:false, noBreath:false, cpr:false}, vol:{address:false,unresp:false,noBreath:false,cpr:false},
+      pendingQ:null, asked:new Set(), reprompts:0, retries:{}, wrongBreath:false, wrongUnresp:false,
+      tHelp:null, speaker:false, tSpeaker:null, tDial:0, cprBefore:false, aed:false, stoppedEarly:false, timers:[], beatId:null, wake:null };
+}
+reset();
+const now=()=>performance.now();
+const elapsed=()=>(now()-S.t0)/1000;
+const fmt=s=>{ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+const later=(fn,ms)=>{ const id=setTimeout(fn,ms); S.timers.push(id); return id; };
+
+/* ---------------- ui ---------------- */
+function setInd(mode, txt){ const el=$('listenInd'); el.className='pill'+(mode?' '+mode:''); $('listenTxt').textContent=txt; }
+let transcript=[];
+function addMsg(kind, text){
+  transcript.push([kind,text]);
+  if(kind==='disp'){ $('capDisp').textContent=text; $('capMe').textContent=''; }
+  else if(kind==='me'||kind==='count'){ $('capMe').textContent='Jij: '+text; }
+}
+function note(t){ addMsg('note', t); }
+
+/* ---------------- audio ---------------- */
+let actx=null, master=null;
+const EAR=0.35, SPK=1; // zonder luidspreker klinkt alles zacht, zoals aan je oor
+function out(){ if(!master){ master=actx.createGain(); master.gain.value=1; master.connect(actx.destination); } return master; }
+function setVolume(v){ if(actx) out().gain.setTargetAtTime(v, actx.currentTime, 0.03); }
+function beep(freq,dur,vol){ if(!actx) return; const o=actx.createOscillator(), g=actx.createGain();
+  o.frequency.value=freq; g.gain.value=vol; o.connect(g); g.connect(out()); o.start(); o.stop(actx.currentTime+dur); }
+function setSpeaker(on){
+  S.speaker=on; $('spkBtn').setAttribute('aria-pressed', on?'true':'false');
+  setVolume(on?SPK:EAR);
+  if(on && S.tSpeaker===null && S.t0) S.tSpeaker=(now()-S.tDial)/1000;
+}
+function startMetronome(){
+  if(S.beatId) return;
+  $('cprPill').classList.remove('hidden');
+  S.beatId=setInterval(()=>{ const h=$('cprDot'); h.classList.add('beat'); setTimeout(()=>h.classList.remove('beat'),110); }, 60000/110);
+}
+function stopMetronome(){ clearInterval(S.beatId); S.beatId=null; }
+
+/* ---------------- speech out ---------------- */
+function say(text, then){
+  addMsg('disp', text);
+  stopRec(); S.speaking=true; setInd('talk','Meldkamer spreekt…');
+  const done=()=>{ if(!S.speaking) return; S.speaking=false; if(S.phase!=='done' && then) then(); };
+  if(!synth){ setTimeout(done,500); return; }
+  synth.cancel();
+  const u=new SpeechSynthesisUtterance(text.replace(/\b112\b/g,'één één twee')); u.lang='nl-NL'; if(voice) u.voice=voice; u.rate=1.08; u.volume=S.speaker?1:0.25;
+  u.onend=done; u.onerror=done; later(done, 1800+text.length*85);
+  synth.speak(u);
+}
+
+/* ---------------- speech in ---------------- */
+const NUMTOK=/^(een|één|twee|drie|vier|vijf|zes|zeven|acht|negen|tien|elf|twaalf|\S*tien|\S*twintig|dertig|\d+|en|eh|uh|ehm|hm)$/;
+const tokens=t=>t.toLowerCase().replace(/[.,!?;:-]/g,' ').split(/\s+/).filter(Boolean);
+const isCountOnly=t=>{ const k=tokens(t); return k.length>0 && k.every(w=>NUMTOK.test(w)); };
+const hasNumber=t=>tokens(t).some(w=>w!=='en' && NUMTOK.test(w));
+
+function canListen(){ return SR && S.micOk && !S.speaking && (S.phase==='opening'||S.phase==='questions'||S.phase==='cpr'); }
+function startRec(){
+  if(!canListen() || S.rec) return;
+  let r;
+  try{ r=new SR(); }catch(e){ return; }
+  S.rec=r; r.lang='nl-NL'; r.continuous=true; r.interimResults=true; r.maxAlternatives=3;
+  r.onresult=e=>{
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const res=e.results[i]; const txt=res[0].transcript;
+      S.lastSpeech=now();
+      if(S.phase==='opening' && hasNumber(txt)){ S.heardNumbers=true; if(/\btien\b|\b10\b/.test(txt.toLowerCase())) S.sawTen=true; }
+      if(res.isFinal){ const alts=[]; for(let j=0;j<res.length;j++) alts.push(res[j].transcript); onFinal(alts); }
+    }
+  };
+  r.onerror=e=>{ if(['not-allowed','service-not-allowed','audio-capture','network'].includes(e.error)) micFailed(e.error); };
+  r.onend=()=>{ if(S.rec===r) S.rec=null; if(canListen()) setTimeout(startRec,150); };
+  try{ r.start(); }catch(e){ S.rec=null; return; }
+  setInd('on', S.phase==='opening' ? 'Meldkamer luistert mee' : S.phase==='cpr' ? 'Meldkamer luistert, blijf drukken' : 'Spreek maar');
+}
+function stopRec(){ const r=S.rec; S.rec=null; if(r){ r.onend=null; try{ r.abort(); }catch(e){} } }
+const MIC_MSG={
+  'none':'Deze app of browser ondersteunt geen spraakherkenning. Open de link in Safari (iPhone) of Chrome (Android), niet in de Claude-app.',
+  'not-allowed':'Geen toegang tot de microfoon. Open de link in Safari of Chrome en tik op Toestaan als om de microfoon wordt gevraagd.',
+  'service-not-allowed':'Spraakherkenning staat uit. Zet op de iPhone Siri en Dicteren aan via Instellingen, of gebruik Chrome.',
+  'audio-capture':'Er is geen microfoon gevonden.',
+  'network':'Spraakherkenning heeft een internetverbinding nodig.'
+};
+function micFailed(reason){
+  S.micOk=false; stopRec();
+  const msg=MIC_MSG[reason]||MIC_MSG['not-allowed'];
+  setInd('off','Microfoon werkt niet. Tik om opnieuw te proberen.');
+  $('capMe').textContent=msg;
+}
+$('listenInd').onclick=()=>{ if(S.micOk || !SR) return; S.micOk=true; $('capMe').textContent=''; startRec(); };
+
+/* ---------------- dialogue ---------------- */
+const Q={
+  opening:{ ask:'112. Heeft u politie, brandweer of ambulance nodig?', short:'Politie, brandweer of ambulance?' },
+  address:{ ask:'Wat is het adres? Straat, huisnummer en plaats.', short:'Wat is het adres?' },
+  ambOpen:{ ask:'Meldkamer ambulance. Wat is het adres van het noodgeval?', short:'Wat is het adres?' },
+  unresp:{ ask:'Reageert hij als u hem aanspreekt en aan zijn schouders schudt?', short:'Reageert hij?' },
+  breath:{ ask:'Ademt hij normaal?', short:'Ademt hij normaal?' }
+};
+function nextQ(){
+  if(!S.slots.address) return 'address';
+  if(!S.slots.cpr){ if(!S.slots.unresp) return 'unresp'; if(!S.slots.noBreath) return 'breath'; }
+  return null;
+}
+function ask(q, prefix){
+  S.pendingQ=q; S.reprompts=0; if(q!=='opening' && q!=='ambOpen') S.asked.add(q);
+  if(q!=='opening') $('callTitle').textContent='Meldkamer ambulance';
+  say((prefix?prefix+' ':'')+Q[q].ask, listenQ);
+}
+function listenQ(){ S.busy=false; startRec(); armSilence(); }
+function armSilence(){
+  const q=S.pendingQ;
+  later(function check(){
+    if(S.phase!=='questions' || S.pendingQ!==q) return;
+    if(S.busy || S.speaking || now()-S.lastSpeech<4000){ later(check,3000); return; }
+    if(S.reprompts>=2) return;
+    S.reprompts++; S.busy=true;
+    say('Hallo, hoort u mij? '+Q[q].short, listenQ);
+  }, 12000);
+}
+
+function extract(m, isOpening){
+  const got=[];
+  if(!S.slots.address && SC.herken.some(w=>m.includes(w))){ S.slots.address=elapsed(); got.push('address'); }
+  if(!S.slots.unresp && /reageert niet|reageerde niet|niet reageert|niet reageerde|nergens op reageert|niet aanspreekbaar|bewusteloos|geen reactie|reageert nergens|niet bij bewustzijn|buiten bewustzijn/.test(m)){ S.slots.unresp=true; got.push('unresp'); }
+  if(!S.slots.noBreath && /(ademt|ademhaling)[^|]{0,15}\b(niet|geen)\b|\bniet\b[^|]{0,12}ademt|geen (normale )?ademhaling|happ?end|snurk|gasp|naar adem/.test(m)){ S.slots.noBreath=true; got.push('noBreath'); }
+  if(!S.slots.cpr && /reanim|hartmassage|borstcompressie|ik druk|ik ben aan het drukken|begonnen|gestart/.test(m)){ S.slots.cpr=true; got.push('cpr'); startMetronome(); }
+  if(isOpening) got.forEach(k=>S.vol[k]=true);
+  return got;
+}
+
+function onFinal(alts){
+  const first=alts[0].trim(); if(!first) return;
+  const m=alts.join(' | ').toLowerCase();
+  if(S.phase==='opening'){
+    if(isCountOnly(first)){ S.counted=true; addMsg('count', first); return; }
+    // student begint zelf te praten: vraag overslaan en direct overnemen
+    if(S.heardNumbers) S.counted=true;
+    S.phase='questions'; S.busy=true; addMsg('me', first);
+    return respond(m, 'opening');
+  }
+  if(S.phase==='questions'){
+    if(S.busy || S.speaking) return;
+    if(isCountOnly(first)){ addMsg('count', first); return; }
+    S.busy=true; stopRec(); addMsg('me', first);
+    return respond(m, S.pendingQ);
+  }
+  if(S.phase==='cpr'){
+    if(S.speaking || isCountOnly(first)) return;
+    handleCpr(first, m);
+  }
+}
+
+function service(m){
+  let txt;
+  if(/ambulance|ziekenwagen|ziekenauto/.test(m)){ S.service=S.service||'goed'; txt='Ik verbind u door met de ambulance.'; }
+  else if(/politie|brandweer/.test(m)){ S.service='fout';
+    note('Bij iemand die niet reageert vraag je om de ambulance.');
+    txt='Voor iemand die onwel is heeft u de ambulance nodig. Ik verbind u door met de ambulance.'; }
+  else {
+    const n=S.retries.service=(S.retries.service||0)+1;
+    if(n<2) return say('Heeft u politie, brandweer of ambulance nodig?', listenQ);
+    S.service='omweg'; note('Zeg meteen "ambulance". Dat scheelt tijd.');
+    txt='Ik verbind u door met de ambulance.';
+  }
+  say(txt, ()=>{
+    // doorverbinden: kort overgaan, dan neemt de meldkamer ambulance op
+    S.busy=true; setInd('talk','Doorverbinden…'); beep(425,1.0,0.35);
+    later(()=>{ if(S.phase!=='questions') return; S.firstAmb=true; ask('ambOpen'); }, 2200);
+  });
+}
+function respond(m, q){
+  if(q==='opening') return service(m);
+  const first=!!S.firstAmb; S.firstAmb=false;
+  const got=extract(m, first);
+  const acks=[];
+  if(q==='unresp' && !S.slots.unresp){
+    if(/\bnee\b|\bniet\b|\bgeen\b|nop/.test(m)){ S.slots.unresp=true; }
+    else if(/\bja\b|\bwel\b/.test(m)){ S.wrongUnresp=true; note('Hij reageerde niet op aanspreken en schudden.');
+      return say('Controleer het nog een keer: schud stevig aan zijn schouders. Reageert hij?', listenQ); }
+  }
+  if(q==='breath' && !S.slots.noBreath){
+    if(/\bnee\b|\bniet\b|\bgeen\b|hap|snurk|gasp|raar|vreemd|weet (het )?niet|twijfel/.test(m)){ S.slots.noBreath=true; }
+    else if(/\bja\b|normaal|ademt/.test(m)){ S.wrongBreath=true; S.slots.noBreath=true;
+      note('Af en toe happen of snurken is geen normale ademhaling. Twijfel? Dan niet normaal.');
+      acks.push('Af en toe happen of snurken is geen normale ademhaling.'); }
+  }
+  if(got.includes('address')) acks.push(SC.bevestig);
+  if(got.includes('cpr')) acks.push('U bent al gestart met reanimeren, heel goed.');
+
+  const next=nextQ();
+  if(!next) return startCpr(acks);
+  if(next==='address' && (q==='address'||q==='ambOpen')){
+    const n=S.retries.address=(S.retries.address||0)+1;
+    if(n===2) note('Het adres is: '+SC.adres+'. De meldkamer vraagt dit altijd als eerste.');
+    return say((acks.join(' ')+' Ik heb het exacte adres nodig. Welke straat en welke plaats?').trim(), listenQ);
+  }
+  if(next===q){ return say((acks.join(' ')+' '+Q[q].ask).trim(), listenQ); }
+  const prefix = acks.length ? acks.join(' ') : '';
+  ask(next, prefix);
+}
+
+/* ---------------- reanimatie ---------------- */
+const CPR_MAX=12*60; // veiligheidsgrens: na 12 minuten stopt de oefening vanzelf
+const COACH=[
+  [30,'U doet het heel goed. Blijf stevig en snel doordrukken.'],
+  [70,'Gaat het nog? Houd vol, de hulp is onderweg.'],
+  [105,'Is er iemand bij u die kan helpen? Dan wisselt u zo, na twee minuten.'],
+  [120,'Het is nu twee minuten. Wissel als dat kan, snel en zonder pauze.']
+];
+for(let k=2;k<=5;k++){
+  COACH.push([120*k-60, k%2 ? 'U doet het goed. Blijf doorgaan, de hulp komt eraan.' : 'Gaat het nog? Zeg het als u moe wordt.']);
+  COACH.push([120*k, 'Weer twee minuten. Wissel als dat kan, zonder pauze.']);
+}
+const CPR_REPLIES=[
+  [/stop de oefening|einde oefening|oefening stoppen/, null, 'stop'],
+  [/ambulance is er|ambulance is hier|ambulance is gearriveerd|ambulance is aangekomen|ambulance staat|hulpverleners zijn er|ambulancepersoneel|ambulance neemt/, 'Fijn. Draag de zorg over aan het ambulanceteam. U heeft het heel goed gedaan. Ik hang nu op.', 'handover'],
+  [/\baed\b|a e d|a\.e\.d|defibrillator|hartstarter/, 'Goed. Zet de AED aan en volg de gesproken instructies. Ik blijf aan de lijn en ben stil, zodat u de AED goed hoort.', 'aed'],
+  [/schok|shock/, 'Goed. Ga direct weer door met drukken, zoals de AED zegt.'],
+  [/overne|wissel|afloss|neemt het|nemen het/, 'Goed. Wissel snel en ga meteen door, zonder pauze.', 'aedok'],
+  [/moe|kan niet meer|zwaar/, 'Dat is heel normaal. Is er iemand die het kan overnemen? Wissel dan zonder pauze. Anders: houd vol, u doet het heel goed.', 'aedok'],
+  [/beweegt|wakker|hoest|ogen open|\breageert\b|ademt weer/, 'Kijk kort: ademt hij nu normaal? Zo niet, ga direct door met drukken.'],
+  [/hoe lang|wanneer|ambulance|komt er/, 'De ambulance is onderweg. Ga door tot de hulpverleners het van u overnemen.'],
+  [/hoe diep|hoe hard|hoe snel|doe ik het goed|klopt het/, 'Midden op de borst, vijf tot zes centimeter diep, ongeveer twee keer per seconde. Laat de borst steeds helemaal terugkomen.'],
+  [/rib|kraak|knap/, 'Dat kan gebeuren. Ga gewoon door met drukken, dat is nu het belangrijkste.'],
+  [/bang|eng|spannend|help/, 'U doet precies wat nodig is. Ik blijf bij u aan de lijn. Blijf drukken.']
+];
+function startCpr(acks){
+  S.phase='cpr-intro'; S.tHelp=elapsed(); S.cprBefore=S.slots.cpr;
+  startMetronome();
+  const how = S.slots.cpr ? 'Ga door met drukken. U doet het goed.'
+    : 'Begin nu met reanimeren. Handen midden op de borst, armen gestrekt, vijf tot zes centimeter diep, ongeveer twee keer per seconde.';
+  const spk = S.speaker ? [] : ['Zet uw telefoon op de luidspreker en leg hem naast u neer.'];
+  say([...acks,'De ambulance is onderweg en ik stuur burgerhulpverleners met een AED.', ...spk, how, 'Zeg het als de AED er is. Ik blijf aan de lijn.'].join(' '), ()=>{
+    S.phase='cpr'; S.cprStart=now();
+    COACH.forEach(([sec,t])=>later(()=>{ if(S.phase==='cpr' && !S.aed && !S.speaking) say(t, startRec); }, sec*1000));
+    later(()=>finish(false), CPR_MAX*1000);
+    startRec();
+  });
+}
+function handleCpr(first, m){
+  const hit=CPR_REPLIES.find(([re])=>re.test(m));
+  if(!hit) return;
+  // na de AED: niet reageren op wat de AED zelf zegt, alleen op de student
+  if(S.aed && !['stop','handover','aedok'].includes(hit[2])) return;
+  addMsg('me', first);
+  if(hit[2]==='stop'){ S.stoppedEarly=true; return finish(false); }
+  if(hit[2]==='handover'){ S.handover=true; S.phase='ending'; stopRec(); return say(hit[1], ()=>{ S.phase='cpr'; finish(true); }); }
+  if(hit[2]==='aed'){ S.aed=true; S.tAed=(now()-S.cprStart)/1000; }
+  say(hit[1], startRec);
+}
+setInterval(()=>{
+  if(!S.t0 || S.phase==='done' || S.phase==='idle') return;
+  if(S.phase!=='connecting') $('callStatus').textContent=fmt(elapsed());
+  if(S.phase==='cpr' && S.cprStart) $('cprTime').textContent=fmt((now()-S.cprStart)/1000);
+  // wachten tot het hardop tellen klaar is, daarna pas de openingsvraag
+  if(S.phase==='opening' && !S.speaking){
+    const quiet=now()-(S.lastSpeech||S.openStart);
+    if(S.heardNumbers){ if((S.sawTen && quiet>1000) || quiet>2500){ S.counted=true; S.phase='questions'; S.busy=true; ask('opening'); } }
+    else if(now()-S.openStart>7000 && quiet>2000){ S.phase='questions'; S.busy=true; ask('opening'); }
+  }
+}, 250);
+
+/* ---------------- einde ---------------- */
+function finish(aedDone){
+  if(S.phase==='done') return;
+  const wasCpr = S.phase==='cpr' || S.phase==='cpr-intro';
+  S.cprDur = S.cprStart ? (now()-S.cprStart)/1000 : 0;
+  S.phase='done'; stopRec(); stopMetronome(); S.timers.forEach(clearTimeout);
+  if(synth) synth.cancel();
+  if(S.wake){ try{ S.wake.release(); }catch(e){} }
+  setInd('','Oefening klaar'); $('callStatus').textContent='Gesprek beëindigd';
+  setTimeout(()=>showResult(aedDone, wasCpr), 1200);
+}
+function showResult(aedDone, reachedCpr){
+  setVolume(1);
+  const rows=[], cls=(ok,mid)=>ok?'good':(mid?'mid':'bad');
+  rows.push(['Om de ambulance gevraagd', S.service==='goed'?'Ja':S.service==='fout'?'Andere dienst':'Niet duidelijk', cls(S.service==='goed'),
+    'De 112-centralist vraagt eerst: politie, brandweer of ambulance? Zeg meteen "ambulance".']);
+  rows.push(['Ademhaling hardop gecontroleerd', S.counted?'Ja, geteld':'Niet gehoord', cls(S.counted),
+    'Tel hardop tot 10 terwijl je naar de borst kijkt. De meldkamer wacht daarop.']);
+  const volN=['address','unresp','noBreath'].filter(k=>S.vol[k]).length;
+  const missing=[]; if(!S.vol.address) missing.push('het adres'); if(!S.vol.unresp) missing.push('dat hij niet reageert'); if(!S.vol.noBreath) missing.push('dat hij niet normaal ademt');
+  rows.push(['Zelf gemeld aan de meldkamer ambulance', volN+' van 3', cls(volN===3, volN>=1),
+    missing.length ? 'Nog niet genoemd: '+missing.join(', ')+'.' : 'Adres, geen reactie en geen normale ademhaling: alles in één keer.']);
+  rows.push(['Adres genoemd na', S.slots.address!==null?fmt(S.slots.address):'Niet genoemd', cls(S.slots.address!==null&&S.slots.address<=30, S.slots.address!==null&&S.slots.address<=50),
+    'Gerekend vanaf het bellen.']);
+  rows.push(['Reanimatie gestart vóór de instructie', S.cprBefore?'Ja':'Nee', cls(S.cprBefore),
+    'Je hoeft niet te wachten op de meldkamer: begin zodra je weet dat hij niet normaal ademt.']);
+  rows.push(['Extra vragen van de meldkamer', String(S.asked.size), cls(S.asked.size===0, S.asked.size<=1),
+    'Hoe meer je zelf meldt, hoe minder vragen en hoe sneller de hulp vertrekt.']);
+  if(S.wrongBreath||S.wrongUnresp) rows.push(['Juist ingeschat', 'Nee', 'bad',
+    S.wrongBreath?'Happen of snurken is geen normale ademhaling.':'Hij reageerde niet op aanspreken en schudden.']);
+  rows.push(['Luidspreker aangezet', S.tSpeaker!==null?'Na '+fmt(S.tSpeaker):'Niet', cls(S.tSpeaker!==null&&S.tSpeaker<=8, S.tSpeaker!==null),
+    'Zet de luidspreker aan zodra je belt, dan heb je je handen vrij voor de reanimatie.']);
+  rows.push(['Hulp onderweg na', S.tHelp!==null?fmt(S.tHelp):'–', cls(S.tHelp!==null&&S.tHelp<=60, S.tHelp!==null&&S.tHelp<=90), 'Vanaf het bellen tot de meldkamer de ambulance en de AED stuurt.']);
+  rows.push(['AED gemeld aan de meldkamer', S.aed?'Na '+fmt(S.tAed)+' reanimeren':'Nee', cls(S.aed),
+    'Zeg het tegen de meldkamer als de AED er is. De meldkamer wordt dan stil, zodat je de AED goed hoort.']);
+  rows.push(['Reanimatie volgehouden', reachedCpr?fmt(S.cprDur):'–', cls(S.handover||S.cprDur>=120, S.cprDur>=60),
+    'Bespreek met de instructeur de feedback van de oefenpop over diepte en tempo.']);
+  const box=$('resultBox'); box.innerHTML='';
+  rows.forEach(([k,v,c,t])=>{ const d=document.createElement('div'); d.className='metric';
+    d.innerHTML='<span></span><span class="v '+c+'"></span><span class="t"></span>';
+    d.children[0].textContent=k; d.children[1].textContent=v; d.children[2].textContent=t; box.appendChild(d); });
+  const tr=$('transcript'); tr.innerHTML='';
+  transcript.forEach(([k,t])=>{ const li=document.createElement('li'); li.className='tr-'+k;
+    li.textContent=(k==='disp'?'Meldkamer: ':k==='note'?'Tip: ':k==='count'?'Jij (tellen): ':'Jij: ')+t; tr.appendChild(li); });
+  show('result');
+}
+
+/* ---------------- start ---------------- */
+async function askMic(){
+  if(!SR) return false;
+  try{ if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+      const st=await navigator.mediaDevices.getUserMedia({audio:true}); st.getTracks().forEach(t=>t.stop()); }
+    return true; }catch(e){ return false; }
+}
+let dialed='';
+const LET={2:'ABC',3:'DEF',4:'GHI',5:'JKL',6:'MNO',7:'PQRS',8:'TUV',9:'WXYZ',0:'+'};
+const DTMF={1:[697,1209],2:[697,1336],3:[697,1477],4:[770,1209],5:[770,1336],6:[770,1477],7:[852,1209],8:[852,1336],9:[852,1477],'*':[941,1209],0:[941,1336],'#':[941,1477]};
+let keepAlive=null;
+function silentWav(){ // 0,5 s stilte als wav, om iOS in 'afspelen'-modus te zetten
+  const n=4000, b=new ArrayBuffer(44+n*2), v=new DataView(b), w=(o,t)=>{ for(let i=0;i<t.length;i++) v.setUint8(o+i,t.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVEfmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,8000,true); v.setUint32(28,16000,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
+  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
+}
+function audio(){
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+  try{ if(!keepAlive){ keepAlive=new Audio(silentWav()); keepAlive.loop=true; keepAlive.volume=0.01; } keepAlive.play().catch(()=>{}); }catch(e){}
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(e){}
+}
+function tone(k){ audio(); setVolume(1); const f=DTMF[k]; if(!f) return; beep(f[0],0.12,0.06); beep(f[1],0.12,0.06); }
+function renderDial(){ $('dialNum').textContent=dialed; $('delBtn').classList.toggle('invisible', !dialed); $('dialHint').textContent=''; }
+['1','2','3','4','5','6','7','8','9','*','0','#'].forEach(k=>{
+  const b=document.createElement('button'); b.className='key'; b.setAttribute('aria-label',k);
+  b.innerHTML='<span class="d"></span><span class="l"></span>';
+  b.children[0].textContent=k; b.children[1].textContent=LET[k]||'';
+  b.onclick=()=>{ if(dialed.length<15){ dialed+=k; tone(k); renderDial(); } };
+  $('keys').appendChild(b);
+});
+$('delBtn').onclick=()=>{ dialed=dialed.slice(0,-1); renderDial(); };
+function show(id){ ['intro','dialer','call','result'].forEach(s=>$(s).classList.toggle('hidden', s!==id));
+  document.body.dataset.screen=id; window.scrollTo(0,0); }
+function renderList(){
+  const L=$('scList'); L.innerHTML='';
+  SCENARIOS.forEach((sc,i)=>{
+    const b=document.createElement('button'); b.className='row'; b.disabled=!sc.naam;
+    b.innerHTML='<span class="num"></span><span class="txt"><b></b><span></span></span><span class="chev" aria-hidden="true">›</span>';
+    b.querySelector('.num').textContent=i+1;
+    b.querySelector('b').textContent=sc.naam||'Nog in te vullen';
+    b.querySelector('.txt span').textContent=sc.adres||'Beschikbaar voor een nieuw adres';
+    b.onclick=()=>{ SC=sc; dialed=''; renderDial(); $('dialLoc').textContent='📍 '+sc.naam+', '+sc.adres; show('dialer'); };
+    L.appendChild(b);
+  });
+}
+renderList();
+$('backIntro').onclick=()=>show('intro');
+$('dialBtn').onclick=async ()=>{
+  if(dialed!=='112'){ $('dialHint').textContent= dialed ? 'In deze oefening bel je 112.' : 'Toets eerst 112 in.'; return; }
+  audio();
+  if(synth){ const u=new SpeechSynthesisUtterance(' '); u.volume=0; synth.speak(u); } // ontgrendelt spraak op iOS
+  reset(); transcript=[];
+  $('callTitle').textContent='112'; $('callStatus').textContent='bellen…';
+  $('capDisp').textContent=''; $('capMe').textContent='';
+  $('cprPill').classList.add('hidden'); $('cprTime').textContent='0:00';
+  show('call'); setInd('talk','Verbinden…');
+  await askMic();
+  try{ if(navigator.wakeLock) S.wake=await navigator.wakeLock.request('screen'); }catch(e){}
+  S.t0=now(); S.tDial=now(); S.phase='connecting'; setSpeaker(false);
+  setInd('talk','Gaat over…');
+  // overgaan: 425 Hz, 1 seconde aan en 4 seconden uit (Nederlandse kiestoon); twee keer
+  const ring=()=>{ if(S.phase==='connecting') beep(425,1.0,0.35); };
+  ring(); later(ring,5000);
+  later(()=>{
+    if(S.phase!=='connecting') return;
+    S.t0=now(); S.phase='opening'; S.openStart=now(); $('callStatus').textContent='0:00';
+    if(!SR) micFailed('none'); else startRec();
+  },7000);
+};
+$('spkBtn').onclick=()=>setSpeaker(!S.speaker);
+$('endBtn').onclick=()=>{ S.stoppedEarly=true; if(S.phase==='idle'||S.phase==='connecting'){ S.phase='done'; stopRec(); S.timers.forEach(clearTimeout); setVolume(1); show('dialer'); return; } finish(false); };
+$('againBtn').onclick=()=>show('intro');
+$('voiceSel').onchange=e=>{ const v=nlVoices().find(x=>x.name===e.target.value); if(v){ voice=v; try{ localStorage.setItem('meldkamerStem', v.name); }catch(err){} } };
+$('voiceTest').onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance('Meldkamer ambulance. Wat is het adres van het noodgeval?'); u.lang='nl-NL'; if(voice) u.voice=voice; u.rate=1.08; synth.speak(u); };
+$('testBtn').onclick=()=>{
+  const out=$('testOut'); audio(); setVolume(1);
+  beep(425,0.6,0.35);
+  if(synth){ const u=new SpeechSynthesisUtterance('Hoort u mij? Zeg iets.'); u.lang='nl-NL'; if(voice) u.voice=voice; synth.speak(u); }
+  if(!SR){ out.textContent='Geluid: hoor je een toon en een stem? Zo niet, zet het volume hoger en de stille modus uit. Microfoon: '+MIC_MSG.none; return; }
+  out.textContent='Je hoort nu een toon en een stem. Zeg daarna iets…';
+  setTimeout(()=>{
+    let r; try{ r=new SR(); }catch(e){ out.textContent=MIC_MSG.none; return; }
+    r.lang='nl-NL'; r.interimResults=false;
+    let got=false;
+    r.onresult=e=>{ got=true; out.textContent='Het werkt. Verstaan: "'+e.results[0][0].transcript+'"'; };
+    r.onerror=e=>{ got=true; out.textContent = e.error==='no-speech' ? 'Er is niets gehoord. Probeer het nog eens en praat wat harder.' : (MIC_MSG[e.error]||('Fout: '+e.error)); };
+    r.onend=()=>{ if(!got) out.textContent='Er is niets gehoord. Probeer het nog eens.'; };
+    try{ r.start(); out.textContent='Ik luister, zeg iets…'; }catch(e){ out.textContent='Fout bij starten: '+e.message; }
+  }, 2200);
+};
+show('intro');
+})();
+</script>
+</body>
+</html>
