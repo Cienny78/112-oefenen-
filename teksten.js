@@ -123,7 +123,7 @@ details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
   <section id="intro">
     <h1>Oefen het 112-gesprek tijdens de reanimatie</h1>
     <p class="small" style="margin:-6px 0 12px">Kies de locatie van de oefening.</p>
-    <div class="list" id="scList"></div>
+    <div class="list" id="scList"></div><div class="group"><p><b>Locatie voor scenario 4: drenkeling</b></p><select id="drowningLocation" class="vsel" aria-label="Locatie drenkeling"><option value="strand">Strand van Scheveningen</option><option value="zwembad">Zwembad in Den Haag</option><option value="laakkade">Laakkade, Den Haag</option></select><p style="margin-top:10px">Beginsituatie</p><select id="drowningStatus" class="vsel" aria-label="Beginsituatie drenkeling"><option value="uit">Persoon is veilig uit het water gehaald</option><option value="in">Persoon ligt nog in het water</option></select></div><p class="small">Scenario 3: een volwassen slachtoffer in het Haagse Bos, exacte plek onbekend. Scenario 4: een volwassen drenkeling op de gekozen locatie. Locatiegegevens zijn gesimuleerd; de app bepaalt geen echte GPS-locatie.</p>
     <details class="group">
       <summary>Zo gaat de oefening</summary>
       <ol>
@@ -236,12 +236,17 @@ const SCENARIOS = [
     controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
     controleFout:'Zei u de Westerdijkstraat in Den Haag?',
     ambulanceNa:'6:00' },   // ambulance na 6:00
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+  { naam:'Haagse Bos, onduidelijke locatie', adres:'Haagse Bos, Den Haag — exacte plek onbekend',
+    herken:['haagse bos','haagsche bos','bos'], gps:true, buiten:true,
+    bevestig:'U bent in het Haagse Bos in Den Haag.', ambulanceNa:'6:00' },
+  { naam:'Drenkeling', adres:'Kies strand, zwembad of Laakkade',
+    herken:['haagse bos','haagsche bos','bos','water','oever'], gps:true, buiten:true, drenkeling:true,
+    bevestig:'U bent aan het water in het Haagse Bos in Den Haag.', ambulanceNa:'6:00' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' }
 ];
 let SC = SCENARIOS[0];
+// GPS en aanrijtijden zijn gesimuleerd; de app haalt geen echte GPS-gegevens op.
 const AMBULANCE_NA_MINUTEN = 8;   // standaard aanrijtijd als een locatie geen eigen 'ambulanceNa' heeft
 const VRAAG_WAT_NA_SECONDEN = 80; // wanneer de meldkamer vraagt wat er gebeurd is (tijdens het reanimeren)
 const $ = id => document.getElementById(id);
@@ -428,6 +433,8 @@ const Q={
  unresp:{ask:'Reageert {hij} als u {hem} aanspreekt en voorzichtig aan de schouders schudt?',short:'Reageert {hij}?'},
  breath:{ask:'Ademt {hij} normaal?',short:'Is de ademhaling normaal?'},
  confirm:{ask:'Klopt het adres?',short:'Klopt het adres?'},
+ gpsConfirm:{ask:'Ik zie in deze oefening uw GPS-locatie in het Haagse Bos in Den Haag. Bent u daar?',short:'Bent u in het Haagse Bos?'},
+ waterSafety:{ask:'Is de persoon al uit het water en kunt u veilig helpen?',short:'Is de persoon veilig uit het water?'},
  know:{ask:'Weet u wat u moet doen bij het reanimeren?',short:'Weet u wat u moet doen?'},
  clarify:{ask:'Waar twijfelt u over? Ik help u daarbij.',short:'Waar heeft u hulp bij nodig?'},
  assessment:{ask:'Wat ziet u precies? Reageert de persoon duidelijk en ademt die normaal?',short:'Wat ziet u nu?'},
@@ -442,13 +449,17 @@ function dispatch(){
 }
 function nextQ(){
  if(!S.incident) return 'incident';
- if(S.slots.address===null) return 'address';
+ if(S.slots.address===null) return SC.gps?'gpsConfirm':'address';
+ if(SC.drenkeling && !S.waterSafe) return 'waterSafety';
  if(!S.slots.cpr){if(!S.slots.unresp) return 'unresp'; if(!S.slots.noBreath) return 'breath';}
  if(S.knows===undefined) return 'know';
  return null;
 }
 function ask(q,prefix){
+ if(q==='gpsConfirm'){S.pendingQ=q;S.reprompts=0;S.asked.add(q);return say([prefix,'Ik zie uw locatie bij '+(SC.gpsLabel||'het Haagse Bos in Den Haag')+'. Klopt dat? Ik kan de GPS-locatie doorgeven aan de hulpverleners.'].filter(Boolean).join(' '),listenQ);}
  S.pendingQ=q; S.reprompts=0; if(q!=='opening') S.asked.add(q);
+ if(q==='access' && SC.buiten){S.pendingQ=q;return say([prefix,'Ziet u een herkenningspunt, zoals een brug, pad, bord of ingang? Blijf bij de persoon.'].filter(Boolean).join(' '),listenQ);}
+ if(q==='know' && SC.drenkeling){return say([prefix,'Weet u wat u moet doen bij de reanimatie van een drenkeling?'].filter(Boolean).join(' '),listenQ);}
  if(q!=='opening') $('callTitle').textContent='Meldkamer '+(S.desk||'ambulance');
  say([prefix,Q[q].ask].filter(Boolean).join(' '),listenQ);
 }
@@ -466,7 +477,8 @@ function armSilence(){
 
 function extract(m, isOpening){
   const got=[];
-  if(/reanim|bewusteloos|reageert|adem|onwel|ingestort|ligt.{0,15}(grond|vloer)|in elkaar/.test(m)) S.incident=true;
+ if(SC.drenkeling && /uit het water|op de (oever|kant)|op het (strand|droge)|veilig op de kant/.test(m) && !/niet uit|nog niet/.test(m)) S.waterSafe=true;
+  if(/reanim|bewusteloos|reageert|adem|onwel|ingestort|drenkeling|verdronken|uit het water|ligt.{0,15}(grond|vloer)|in elkaar/.test(m)) S.incident=true;
   if(S.slots.address===null && addressComplete(m)){ S.slots.address=elapsed(); got.push('address'); }
   if(!S.slots.unresp && /reageert niet|reageerde niet|niet reageert|niet reageerde|nergens op reageert|niet aanspreekbaar|bewusteloos|geen reactie|reageert nergens|niet bij bewustzijn|buiten bewustzijn/.test(m)){ S.slots.unresp=true; got.push('unresp'); }
   if(!S.slots.noBreath && /(ademt|ademhaling)[^|]{0,15}\b(niet|geen)\b|\bniet\b[^|]{0,12}ademt|geen (normale )?ademhaling|happ?end|snurk|gasp|naar adem/.test(m)){ S.slots.noBreath=true; got.push('noBreath'); }
@@ -522,6 +534,7 @@ function onFinalNow(alts){
 }
 
 function addressComplete(m){
+ if(SC.gps) return false; // Eerst de gesimuleerde GPS-positie bij de beller controleren.
  const number=(SC.adres.match(/\d+/)||[])[0];
  const place=SC.adres.split(',').slice(1).join(',').trim().toLowerCase();
  const digits=number && new RegExp('\\b'+number+'\\b').test(m);
@@ -558,6 +571,19 @@ function respond(m,q){
  if(q==='opening') return service(m);
  const got=extract(m,!!S.firstAmb); S.firstAmb=false;
  const acks=[];
+ if(q==='gpsConfirm'){
+  if(/\bnee\b|niet in|klopt niet|verkeerd/.test(m)) return ask('address','Dan klopt de locatie op mijn scherm niet. Waar bent u wel?');
+  if(/\bja\b|bos|strand|scheveningen|zwembad|laakkade|klopt|weet (ik )?niet|geen idee|onbekend/.test(m)){
+   S.slots.address=elapsed(); S.gpsConfirmed=true;
+   acks.push('Ik geef de GPS-locatie bij '+(SC.gpsLabel||'het Haagse Bos in Den Haag')+' door aan de hulpverleners. U hoeft geen straat of huisnummer te zoeken.');
+  }else return ask('gpsConfirm');
+ }
+ if(SC.drenkeling && /nog in het water|ligt in het water|niet uit het water/.test(m)) return ask('waterSafety','Breng uzelf niet in gevaar.');
+ if(q==='waterSafety'){
+  if(/\bnee\b|niet veilig|nog in/.test(m)) return say('Ga niet zelf het water in als dat onveilig is. Ik geef door dat redding uit het water nodig is. De hulpdiensten worden voor een waterredding ingezet. Blijf op een veilige plek. Vertel het zodra de persoon veilig uit het water is.',listenQ);
+  if(/\bja\b|uit het water|op de oever/.test(m)){S.waterSafe=true;acks.push('Goed dat de persoon uit het water is.');}
+  else return ask('waterSafety');
+ }
  if(S.desk && S.desk!=='ambulance'){
   if(S.incident) return connectDesk('ambulance');
   return ask('incident','Kunt u vertellen wat er aan de hand is?');
@@ -588,6 +614,7 @@ function respond(m,q){
  if(got.includes('aedFetch')) acks.push('Prima, goed dat u al iemand voor de AED heeft gestuurd.');
  if(/verdieping|lokaal|ruimte|ingang|receptie/.test(m)) S.accessGiven=true;
  if(/geen (aed|a e d)|aed.{0,15}niet (beschikbaar|aanwezig|bereikbaar)/.test(m)) S.aedAbsent=true;
+ if(q==='address' && SC.gps && /straat|weg|laan|plein|ingang|brug|pad/.test(m) && /\d|den haag/.test(m)){S.slots.address=elapsed();acks.push('Ik noteer uw opgegeven locatie en geef die door aan de hulpverleners.');}
  if(q==='address' && S.slots.address===null) acks.push('Ik heb nog het volledige adres nodig, met huisnummer en plaats.');
  advance(acks);
 }
@@ -760,9 +787,10 @@ function startCpr(acks){
   let how;
   if(S.slots.cpr && S.knows!==false) how='Ga door met reanimeren. Geef aan als u hulp nodig heeft.';
   else if(S.knows) how='Goed. Begint u maar, ik blijf aan de lijn.';
-  else how='Ik help u. Leg uw handen op elkaar, midden op de borst. Druk met gestrekte armen vijf tot zes centimeter diep, ongeveer twee keer per seconde, en laat de borst steeds helemaal terugkomen. Begin nu.';
+  else how='Ik help u. Plaats de hiel van uw hand midden op de borst en uw andere hand daar bovenop. Houd uw armen gestrekt. Druk vijf tot zes centimeter diep, honderd tot honderdtwintig keer per minuut. Laat de borst na elke druk helemaal terugveren. Begin nu met dertig borstcompressies. Geef daarna twee beademingen: kantel het hoofd achterover, til de kin op en knijp de neus dicht. Sluit uw mond om de mond van de persoon en blaas rustig één seconde, totdat de borst omhoogkomt. Laat de borst dalen en geef de tweede beademing. Ga direct verder met dertig borstcompressies. Blijf dertig compressies en twee beademingen afwisselen. Houd de onderbreking zo kort mogelijk, bij voorkeur maximaal vijf seconden. Lukt beademen niet of wilt u niet beademen, blijf dan zonder onderbreking borstcompressies geven. Volg de AED zodra die er is. Ik blijf aan de lijn.';
   const send=dispatch();
-  const spk = S.speaker ? [] : ['Zet uw telefoon op de luidspreker en leg hem naast u neer.'];
+  if(SC.drenkeling && S.knows===false) how='Ik help u. Geef eerst vijf beademingen: kantel het hoofd achterover, til de kin op en knijp de neus dicht. Sluit uw mond om de mond van de persoon. Blaas telkens rustig één seconde zodat de borst omhoogkomt en laat die weer dalen. Geef daarna dertig borstcompressies midden op de borst, vijf tot zes centimeter diep en honderd tot honderdtwintig keer per minuut. Laat de borst terugveren. Wissel vervolgens dertig compressies en twee beademingen af. Als beademen niet lukt, geef borstcompressies en zeg het, dan help ik u verder. Volg de AED zodra die er is.';
+ const spk = S.speaker ? [] : ['Zet uw telefoon op de luidspreker en leg hem naast u neer.'];
   const two = hasHelp() ? ['Er is nog iemand bij u: wissel ongeveer elke twee minuten van wie er drukt, liefst tijdens de analyse van de AED.'] : (S.away>0 ? ['U bent nu alleen bij de persoon. Zeg het zodra uw collega terug is.'] : []);
   const askAed = !S.aed && S.aedState!=='fetching';
   const tail = askAed ? 'Is er een AED ter plaatse, of wordt die gehaald?' : 'Ik blijf aan de lijn.';
@@ -775,8 +803,8 @@ function startCpr(acks){
     later(()=>finish(false), CPR_MAX*1000);
     later(ambulanceArrives, Math.max(5, arriveSec() - SIREN - elapsed())*1000);
     if(!SC.kort){
-      askDuring(20, 'access', 'Waar in het gebouw ligt de persoon en welke ingang kunnen de hulpverleners gebruiken?', ()=>!S.accessGiven);
-      askDuring(45, 'reception', 'Kan iemand de ambulance bij de ingang opvangen?', ()=>hasHelp() && !S.receptionGiven);
+      askDuring(20, 'access', SC.buiten?'Ziet u een herkenningspunt, zoals een brug, pad, bord of ingang? Blijf bij de persoon.':'Waar in het gebouw ligt de persoon en welke ingang kunnen de hulpverleners gebruiken?', ()=>!S.accessGiven);
+      askDuring(45, 'reception', SC.buiten?'Kan een andere helper de hulpverleners bij een pad of ingang opvangen?':'Kan iemand de ambulance bij de ingang opvangen?', ()=>hasHelp() && !S.receptionGiven);
       askDuring(VRAAG_WAT_NA_SECONDEN, 'what', 'Weet u wat er gebeurd is?', ()=>!S.what);
     }
     if(S.askAge) askDuring(150, 'age', 'Hoe oud is {hij} ongeveer?');
@@ -799,6 +827,8 @@ function handleDialogue(first,m){
  if(/(ambulance|ambulanceteam|hulpverleners).{0,30}(nemen|neemt|overgenomen)|ze nemen het (nu )?over/.test(m)){
   S.handover=true; addMsg('me',first); say('Geef kort door wat er is gebeurd, wanneer u begon en wat de AED heeft aangegeven. Bedankt voor uw inzet.',()=>finish(true));return true;
  }
+ if(SC.drenkeling && /kan (niet|geen) beadem|niet beademen/.test(m)) {return speak('Beademingen zijn bij verdrinking extra belangrijk. Wat lukt er niet? Als beademen niet lukt, blijf borstcompressies geven terwijl ik u help.','drowningBreaths');}
+ if(S.cprQ==='drowningBreaths') return speak('Kantel het hoofd achterover en til de kin op. Knijp de neus dicht, sluit uw mond om de mond en blaas rustig totdat de borst omhoogkomt. Lukt dat niet na twee pogingen, ga direct verder met borstcompressies.');
  if(/komt er hulp|komt er wel hulp|is er hulp onderweg|hoelang|hoe lang.*(nog|duurt)|waar blijft de ambulance/.test(m))
   return speak('Twee ambulances zijn met spoed onderweg en burgerhulpverlening is geactiveerd. Een exacte aankomsttijd kan ik niet geven. Ik blijf aan de lijn.',S.cprQ);
  if(/(haal|haalt|halen|weggestuurd|gestuurd).{0,50}(aed|a e d)|(aed|a e d).{0,25}(halen|onderweg)/.test(m) && !/geen|niemand|kan niet|niet halen|waar blijft|komt.*aed/.test(m)){
@@ -848,9 +878,6 @@ function handleCpr(first, m){
       if(!helpersChanged){ if(/\bnee\b|niemand|alleen/.test(m)) { S.helpers=0; } else if(/\bja\b|iemand|collega/.test(m)) { S.helpers=Math.max(1,S.helpers||0); } }
       return say(helperReply(), startRec);
     }
-    if(key==='phone'){ S.phoneGiven=/\d|\bnul\b|\bzes\b|\bacht\b|\bnegen\b|\bvijf\b|\bdrie\b|\bvier\b|\bzeven\b|\btwee\b/.test(m);
-      S.cprQ='name'; later(()=>{ if(S.cprQ==='name') S.cprQ=null; }, 20000);
-      return say(S.phoneGiven?'Dank u. En wat is uw naam?':'Dat is goed. En wat is uw naam?', startRec); }
     if(key==='name'){ S.nameGiven=true; return say('Dank u.', startRec); }
     if(key==='what'){ S.what=true; return say('Dank u, dat geef ik door aan de ambulance.', startRec); }
     if(key==='age'){ return say('Dank u. De hulp is onderweg.', startRec); }
@@ -917,8 +944,6 @@ function showResult(aedDone, reachedCpr){
     'Zet de luidspreker aan zodra je belt, dan heb je je handen vrij voor de reanimatie.']);
   if(S.confirmPlan==='wrong' && S.confirmAsked) rows.push(['Verkeerd adres verbeterd', S.confirmOk?'Ja':'Nee', cls(S.confirmOk),
     'De meldkamer las het adres bewust verkeerd voor. Luister goed en verbeter het meteen.']);
-  if(S.phoneGiven!==undefined) rows.push(['Terugbelnummer en naam', (S.phoneGiven?'Nummer':'Geen nummer')+(S.nameGiven?', naam':''), cls(S.phoneGiven&&S.nameGiven, S.phoneGiven||S.nameGiven),
-    'De meldkamer vraagt dit voor als de verbinding wegvalt. Ken je eigen nummer.']);
   rows.push(['Hulp onderweg na', S.tHelp!==null?fmt(S.tHelp):'–', cls(S.tHelp!==null&&S.tHelp<=60, S.tHelp!==null&&S.tHelp<=90), 'Vanaf het bellen tot twee ambulances en burgerhulpverlening zijn gealarmeerd.']);
   rows.push(['AED gemeld aan de meldkamer', S.aedEarly?'Al bij de melding':S.aed?'Na '+fmt(S.tAed)+' reanimeren':'Nee', cls(S.aed),
     'Zeg het tegen de meldkamer als de AED er is. De meldkamer wordt dan stil, zodat je de AED goed hoort.']);
@@ -998,7 +1023,13 @@ function renderList(){
     b.querySelector('.num').textContent=i+1;
     b.querySelector('b').textContent=sc.naam||'Nog in te vullen';
     b.querySelector('.txt span').textContent=sc.adres ? sc.adres+'. Ambulance na '+(sc.ambulanceNa||AMBULANCE_NA_MINUTEN+':00') : 'Beschikbaar voor een nieuw adres';
-    b.onclick=()=>{ SC=sc; dialed=''; renderDial(); warmupMic(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
+    b.onclick=()=>{ SC=sc;
+      if(sc.drenkeling){
+        const choice=$('drowningLocation').value;
+        const labels={strand:'het strand van Scheveningen',zwembad:'een zwembad in Den Haag',laakkade:'de Laakkade in Den Haag'};
+        SC={...sc,gpsLabel:labels[choice],adres:labels[choice],waterStart:$('drowningStatus').value};
+      }
+      dialed=''; renderDial(); warmupMic(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
     L.appendChild(b);
   });
 }
@@ -1008,6 +1039,7 @@ $('dialBtn').onclick=async ()=>{
   if(dialed!=='112'){ $('dialHint').textContent= dialed ? 'In deze oefening bel je 112.' : 'Toets eerst 112 in.'; return; }
   audio();
   reset(); transcript=[];
+  if(SC.drenkeling){S.waterSafe=SC.waterStart==='uit';}
   ring(); // meteen overgaan, nog binnen de tik (nodig op iPhone)
   if(synth){ const u=new SpeechSynthesisUtterance(' '); u.volume=0; synth.speak(u); } // ontgrendelt spraak op iOS
   $('callTitle').textContent='112'; $('callStatus').textContent='bellen…';
@@ -1082,5 +1114,3 @@ show('intro');
 </script>
 </body>
 </html>
-reanimatie-112.html
-HTML
