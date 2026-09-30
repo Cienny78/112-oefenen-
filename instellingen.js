@@ -28,8 +28,12 @@ const SCENARIOS = [
     controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
     controleFout:'Zei u de Westerdijkstraat in Den Haag?',
     ambulanceNa:'6:00' },   // ambulance na 6:00
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
+  { naam:'Haagse Bos, onduidelijke locatie', adres:'Haagse Bos, Den Haag — exacte plek onbekend',
+    herken:['haagse bos','haagsche bos','bos'], gps:true, buiten:true,
+    bevestig:'U bent in het Haagse Bos in Den Haag.', ambulanceNa:'6:00' },
+  { naam:'Drenkeling', adres:'Kies strand, zwembad of Laakkade',
+    herken:['haagse bos','haagsche bos','bos','water','oever'], gps:true, buiten:true, drenkeling:true,
+    bevestig:'U bent aan het water in het Haagse Bos in Den Haag.', ambulanceNa:'6:00' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
   { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' }
 ];

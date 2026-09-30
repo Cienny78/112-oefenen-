@@ -1,431 +1,5 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Oefen: 112 bellen bij reanimatie</title>
-<style>
-:root{
-  --pink:#FF4FA0; --bg:#FFFFFF; --surface:#F2F2F7; --ink:#000000; --muted:#6C6C70; --line:#D1D1D6;
-  --key:#E5E5EA; --keybg:#FFFFFF; --green:#65C466; --red:#FF3B30; --ok:#248A3D; --warn:#B25000; --bad:#D70015; --blue:#007AFF;
-  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){ --bg:#000000; --surface:#1C1C1E; --ink:#FFFFFF; --muted:#98989F; --line:#38383A;
-    --key:#333333; --keybg:#1C1C1E; --ok:#30D158; --warn:#FF9F0A; --bad:#FF453A; --blue:#0A84FF; }
-}
-:root[data-theme="dark"]{ --bg:#000000; --surface:#1C1C1E; --ink:#FFFFFF; --muted:#98989F; --line:#38383A;
-  --key:#333333; --keybg:#1C1C1E; --ok:#30D158; --warn:#FF9F0A; --bad:#FF453A; --blue:#0A84FF; }
-html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
-*,*::before,*::after{box-sizing:inherit}
-body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,Arial,sans-serif;font-size:17px;line-height:1.4;
-  -webkit-tap-highlight-color:transparent}
-body[data-screen="call"]{background:#12181f}
-/* oefenrand */
-.frame{position:fixed;z-index:50;pointer-events:none;
-  top:env(safe-area-inset-top,0px);bottom:env(safe-area-inset-bottom,0px);left:0;right:0;
-  border:12px solid var(--pink);border-radius:22px}
-.frame-label{position:fixed;z-index:51;pointer-events:none;left:50%;transform:translateX(-50%);
-  top:env(safe-area-inset-top,0px);background:var(--pink);color:#fff;font-size:12px;font-weight:600;
-  padding:1px 12px 4px;border-radius:0 0 10px 10px;white-space:nowrap}
-.screen{height:100%;padding:30px 24px 24px;max-width:520px;margin:0 auto}
-.hidden{display:none!important} .invisible{visibility:hidden}
-button{font:inherit;color:inherit}
-button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
-/* uitleg */
-#intro h1{font-size:28px;line-height:1.15;margin:8px 0 14px}
-.group{background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:14px}
-.group p{margin:0 0 8px} .group p:last-child{margin:0}
-.group ol{margin:4px 0 0;padding-left:22px} .group li{margin-bottom:6px}
-.addr{font-weight:700}
-.primary{display:block;width:100%;border:0;border-radius:14px;background:var(--blue);color:#fff;font-weight:600;padding:15px;cursor:pointer}
-.small{font-size:14px;color:var(--muted)}
-.list{background:var(--surface);border-radius:12px;overflow:hidden;margin-bottom:14px}
-.row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:transparent;padding:13px 16px;cursor:pointer;color:var(--ink)}
-.row+.row{border-top:1px solid var(--line)}
-.row .num{width:30px;height:30px;border-radius:8px;background:var(--pink);color:#fff;font-weight:700;display:grid;place-items:center;flex:none}
-.row .txt{flex:1;min-width:0} .row .txt b{display:block;font-weight:600} .row .txt span{display:block;font-size:14px;color:var(--muted)}
-.row .chev{color:var(--muted);font-size:22px}
-.row:disabled{cursor:default;opacity:.55} .row:disabled .num{background:var(--muted)}
-.loc{font-size:14px;color:var(--muted);text-align:center;margin-top:4px}
-details.group summary{font-weight:600}
-.vsel{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
-.vtest{width:auto!important;margin:0!important;padding:8px 14px!important}
-.secondary{display:block;width:100%;border:0;border-radius:14px;background:var(--surface);color:var(--blue);font-weight:600;padding:14px;cursor:pointer;margin-bottom:6px}
-#testOut{min-height:1.2em;margin:0 0 12px}
-.small a{color:var(--bad);font-weight:600}
-/* toetsenblok */
-#dialer{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:10px;min-height:100%}
-.dialnum{font-size:40px;font-weight:600;min-height:52px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
-.dialhint{font-size:14px;color:var(--bad);min-height:20px}
-.keys{display:grid;grid-template-columns:repeat(3,min(22vw,84px));gap:14px min(6vw,26px);margin-top:6px}
-.key{width:min(22vw,84px);aspect-ratio:1;border-radius:50%;border:0;background:var(--keybg);cursor:pointer;
-  box-shadow:0 6px 22px rgba(0,0,0,.07),0 1px 3px rgba(0,0,0,.04);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
-.key:active{background:var(--key)}
-.key .d{font-size:38px;font-weight:700} .key .l{font-size:11px;font-weight:800;letter-spacing:.14em;margin-top:3px;min-height:11px}
-.dialrow{display:grid;grid-template-columns:repeat(3,min(22vw,84px));gap:min(6vw,26px);align-items:center;justify-items:center;margin-top:14px}
-.tabbar{display:flex;gap:10px;align-items:center;width:100%;margin-top:18px}
-.tabs{flex:1;display:flex;justify-content:space-around;background:var(--keybg);border-radius:999px;padding:6px;
-  box-shadow:0 6px 22px rgba(0,0,0,.07)}
-.tab{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;color:var(--ink)}
-.tab.on{background:var(--key);color:var(--blue)}
-.tabsearch{width:58px;height:58px;border-radius:50%;background:var(--keybg);display:grid;place-items:center;box-shadow:0 6px 22px rgba(0,0,0,.07);flex:none}
-.round{width:min(22vw,84px);height:min(22vw,84px);border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;color:#fff}
-.round.go{background:var(--green)} .round.end{background:var(--red)} .round.end svg{transform:rotate(135deg)}
-.del{background:none;border:0;color:var(--ink);cursor:pointer;font-size:14px}
-.linkish{background:none;border:0;color:var(--blue);cursor:pointer;margin-top:8px;font-size:15px}
-/* gesprek */
-#call{color:#fff;display:flex;flex-direction:column;align-items:center;min-height:100%;gap:10px;
-  background:radial-gradient(120% 70% at 50% 0%,#4a5a6e 0%,#26303c 45%,#12181f 100%);margin:-30px -24px -24px;padding:44px 24px 34px}
-.cname{font-size:34px;font-weight:400;margin-top:10px}
-.cstatus{font-size:17px;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums;margin-top:-6px}
-.pill{display:flex;align-items:center;gap:8px;border:0;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);
-  border-radius:999px;padding:6px 14px;font-size:14px;margin-top:6px}
-.pill .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.4)}
-.pill.on .dot{background:var(--green);animation:pulse 1.2s infinite}
-.pill.talk .dot{background:#64D2FF}
-.pill.off{background:rgba(255,59,48,.3);cursor:pointer} .pill.off .dot{background:var(--red)}
-@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(52,199,89,.25)}}
-.captions{width:100%;flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px;text-align:center;min-height:120px}
-.capd{font-size:20px;line-height:1.35}
-.capm{font-size:15px;color:rgba(255,255,255,.65)}
-.cpr{display:flex;align-items:center;gap:10px;background:rgba(255,59,48,.22);border-radius:999px;padding:6px 16px;font-size:15px}
-.cpr b{font-variant-numeric:tabular-nums}
-.cprdot{width:14px;height:14px;border-radius:50%;background:var(--red);transition:transform .08s}
-.cprdot.beat{transform:scale(1.7)}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 22px;margin-top:6px}
-.cb{display:flex;flex-direction:column;align-items:center;gap:6px}
-.cbtn{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;color:#fff}
-.cbtn.active,.cbtn[aria-pressed="true"]{background:#fff;color:#1c1c1e}
-button.cbtn{border:0;cursor:pointer;padding:0}
-.cbl{font-size:13px;color:rgba(255,255,255,.85)}
-.endwrap{margin-top:22px;display:flex;flex-direction:column;align-items:center;gap:6px}
-/* uitslag */
-#result h2{font-size:28px;margin:8px 0 14px}
-.metric{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 0;border-top:1px solid var(--line)}
-.metric:first-of-type{border-top:0;padding-top:0}
-.metric .v{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
-.metric .t{grid-column:1/-1;font-size:15px;color:var(--muted)}
-.good{color:var(--ok)} .mid{color:var(--warn)} .bad{color:var(--bad)}
-details{margin-bottom:14px} summary{cursor:pointer;color:var(--blue)}
-#transcript{padding-left:18px;font-size:15px} #transcript li{margin:4px 0}
-.tr-note{color:var(--warn)} .tr-count{color:var(--muted)}
-@media (prefers-reduced-motion: reduce){.pill.on .dot{animation:none}.cprdot{transition:none}}
-</style>
-</head>
-<body>
-<div class="frame" aria-hidden="true"></div>
-<div class="frame-label">Oefenscenario, er wordt niet echt gebeld</div>
-<main class="screen">
-
-  <section id="intro">
-    <h1>Oefen het 112-gesprek tijdens de reanimatie</h1>
-    <p class="small" style="margin:-6px 0 12px">Kies de locatie van de oefening.</p>
-    <div class="list" id="scList"></div><div class="group"><p><b>Locatie voor scenario 4: drenkeling</b></p><select id="drowningLocation" class="vsel" aria-label="Locatie drenkeling"><option value="strand">Strand van Scheveningen</option><option value="zwembad">Zwembad in Den Haag</option><option value="laakkade">Laakkade, Den Haag</option></select><p style="margin-top:10px">Beginsituatie</p><select id="drowningStatus" class="vsel" aria-label="Beginsituatie drenkeling"><option value="uit">Persoon is veilig uit het water gehaald</option><option value="in">Persoon ligt nog in het water</option></select></div><p class="small">Scenario 3: een volwassen slachtoffer in het Haagse Bos, exacte plek onbekend. Scenario 4: een volwassen drenkeling op de gekozen locatie. Locatiegegevens zijn gesimuleerd; de app bepaalt geen echte GPS-locatie.</p>
-    <details class="group">
-      <summary>Zo gaat de oefening</summary>
-      <ol>
-        <li>Spreek het slachtoffer aan en schud aan de schouders. Geen reactie.</li>
-        <li>Toets 112 in, bel en zet de telefoon op de luidspreker. Leg hem naast de pop.</li>
-        <li>Tel hardop tot 10 terwijl je de ademhaling controleert.</li>
-        <li>Vraag om de ambulance, vertel wat er aan de hand is en begin met reanimeren.</li>
-        <li>Zeg "de AED is er" als die aankomt.</li>
-      </ol>
-    </details>
-    <div class="group">
-      <p style="display:flex;justify-content:space-between;align-items:center"><b>Stemmen</b><button class="linkish" id="voiceReload" style="margin:0">Opnieuw zoeken</button></p>
-      <p class="small" id="voiceCount" style="margin:-4px 0 8px"></p>
-      <details style="margin:0 0 10px"><summary class="small" style="color:var(--blue)">Welke stemmen ziet deze telefoon?</summary>
-        <p class="small" style="margin:6px 0">Alle stemmen die Safari aan de app doorgeeft, in alle talen. Maak hier gerust een schermafbeelding van.</p>
-        <ol id="voiceAll" class="small" style="padding-left:18px;margin:0;max-height:260px;overflow:auto"></ol>
-      </details>
-      <p class="small" style="margin:0 0 4px">112-centralist</p>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-        <select id="voiceSel112" class="vsel"></select>
-        <button class="secondary vtest" id="voiceTest112">Luister</button>
-      </div>
-      <p class="small" style="margin:0 0 4px">Meldkamer ambulance</p>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="voiceSelAmb" class="vsel"></select>
-        <button class="secondary vtest" id="voiceTestAmb">Luister</button>
-      </div>
-      <p class="small" style="margin:12px 0 4px">Uitspraak van "AED"</p>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="aedSel" class="vsel"></select>
-        <button class="secondary vtest" id="aedTest">Luister</button>
-      </div>
-      <p class="small" style="margin-top:8px">Mooiere stem op de iPhone: Instellingen, Toegankelijkheid, Gesproken materiaal, Stemmen, Nederlands. Download daar het liefst twee stemmen met "Verbeterd" of "Premium" (bijvoorbeeld een mannen- en een vrouwenstem) en kies ze hier.</p>
-    </div>
-    <p class="small" id="supportNote"></p>
-    <p class="small">Vraagt Safari steeds om de microfoon? Tik in de adresbalk op <b>aA</b>, dan <b>Website-instellingen</b>, en zet <b>Microfoon</b> op <b>Sta toe</b>. Dan wordt het niet meer gevraagd.</p>
-    <button class="secondary" id="testBtn">Test geluid en microfoon</button>
-    <p class="small" id="testOut" aria-live="polite"></p>
-    <p class="small" style="text-align:center;margin-top:14px">Echte noodsituatie? <a href="tel:112">Bel 112 met je gewone telefoon</a></p>
-  </section>
-
-  <section id="dialer" class="hidden">
-    <div class="loc" id="dialLoc"></div>
-    <div class="dialnum" id="dialNum" aria-live="polite"></div>
-    <div class="dialhint" id="dialHint"></div>
-    <div class="keys" id="keys"></div>
-    <div class="dialrow">
-      <span></span>
-      <button class="round go" id="dialBtn" aria-label="Bellen"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
-      <button class="del invisible" id="delBtn" aria-label="Wis laatste cijfer"><svg viewBox="0 0 28 20" width="30" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 1h17v18H9L1 10z"/><path d="M13 6l8 8M21 6l-8 8" stroke-linecap="round"/></svg></button>
-    </div>
-    <div class="tabbar" aria-hidden="true">
-      <div class="tabs">
-        <span class="tab"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 6.5V12H8" stroke="var(--keybg)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Oproepen</span>
-        <span class="tab"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><circle cx="12" cy="9.5" r="3.3" fill="var(--keybg)"/><path d="M5.8 18.2c1.4-2.3 3.6-3.4 6.2-3.4s4.8 1.1 6.2 3.4" stroke="var(--keybg)" stroke-width="2" fill="none"/></svg>Contacten</span>
-        <span class="tab on"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2.6"/><circle cx="12" cy="5" r="2.6"/><circle cx="19" cy="5" r="2.6"/><circle cx="5" cy="12" r="2.6"/><circle cx="12" cy="12" r="2.6"/><circle cx="19" cy="12" r="2.6"/><circle cx="5" cy="19" r="2.6"/><circle cx="12" cy="19" r="2.6"/><circle cx="19" cy="19" r="2.6"/></svg>Toetsen</span>
-      </div>
-      <span class="tabsearch"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
-    </div>
-    <button class="linkish" id="backIntro">Andere locatie kiezen</button>
-  </section>
-
-  <section id="call" class="hidden">
-    <div class="cname" id="callTitle">112</div>
-    <div class="cstatus" id="callStatus">bellen…</div>
-    <button class="pill" id="listenInd" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="listenTxt">Verbinden…</span></button>
-    <div class="captions" style="visibility:hidden" aria-hidden="true">
-      <div class="capd" id="capDisp" aria-live="polite"></div>
-      <div class="capm" id="capMe"></div>
-    </div>
-    <div class="cpr hidden" id="cprPill" style="display:none!important"><span class="cprdot" id="cprDot"></span><span>Reanimatie</span><b id="cprTime">0:00</b></div>
-    <div class="grid">
-      <div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg></span><span class="cbl">geluid uit</span></div><div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><circle cx="6" cy="5" r="1.8"/><circle cx="12" cy="5" r="1.8"/><circle cx="18" cy="5" r="1.8"/><circle cx="6" cy="11" r="1.8"/><circle cx="12" cy="11" r="1.8"/><circle cx="18" cy="11" r="1.8"/><circle cx="6" cy="17" r="1.8"/><circle cx="12" cy="17" r="1.8"/><circle cx="18" cy="17" r="1.8"/><circle cx="12" cy="22" r="1.4"/></svg></span><span class="cbl">toetsen</span></div><div class="cb"><button class="cbtn" id="spkBtn" aria-pressed="false" aria-label="Luidspreker"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button><span class="cbl">luidspreker</span></div>
-      <div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="cbl">voeg toe</span></div><div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg></span><span class="cbl">wacht</span></div><div class="cb"><span class="cbtn" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-4 4.2-5.5 7.5-5.5s6.3 1.5 7.5 5.5"/></svg></span><span class="cbl">contacten</span></div>
-    </div>
-    <div class="endwrap">
-      <button class="round end" id="endBtn" aria-label="Ophangen en oefening stoppen"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
-    </div>
-  </section>
-
-  <section id="result" class="hidden">
-    <h2>Zo ging het</h2>
-    <div class="group" id="resultBox"></div>
-    <details class="group"><summary>Het hele gesprek teruglezen</summary><ol id="transcript"></ol></details>
-    <button class="primary" id="againBtn">Opnieuw oefenen</button>
-  </section>
-</main>
-<script>
-(function(){
-/* =====================================================================
-   LOCATIES — hier kun je later adressen toevoegen of aanpassen.
-   naam:      wat de student in de lijst ziet
-   adres:     het volledige adres (staat op het toetsenscherm)
-   herken:    woorden waarop de meldkamer het adres goedkeurt (kleine letters)
-   bevestig:  wat de meldkamer terugzegt als het adres goed is
-   Laat 'naam' leeg ('') voor een plek die nog niet in gebruik is.
-   ===================================================================== */
-const SCENARIOS = [
-  { naam:'De Haagse Hogeschool, kort', adres:'Johanna Westerdijkplein 75, Den Haag', kort:true,   // kort: weinig vragen, korte instructies
-    herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
-    bevestig:'Haagse Hogeschool, begrepen.',
-    // soms leest de meldkamer het adres ter controle voor, en soms bewust met een fout
-    controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
-    controleFout:'Zei u de Westerdijkstraat in Den Haag?',
-    ambulanceNa:'3:15' },   // ambulance na 3:15 (vanaf het opnemen)
-  { naam:'De Haagse Hogeschool, lang', adres:'Johanna Westerdijkplein 75, Den Haag',
-    herken:['haagse hogeschool','haagse school','haagse hoge school','hogeschool','westerdijk','westdijk','wester dijk','westerdijkplein'],
-    bevestig:'De Haagse Hogeschool aan het Johanna Westerdijkplein in Den Haag, begrepen.',
-    // soms leest de meldkamer het adres ter controle voor, en soms bewust met een fout
-    controleGoed:'Johanna Westerdijkplein 75 in Den Haag, klopt dat?',
-    controleFout:'Zei u de Westerdijkstraat in Den Haag?',
-    ambulanceNa:'6:00' },   // ambulance na 6:00
-  { naam:'Haagse Bos, onduidelijke locatie', adres:'Haagse Bos, Den Haag — exacte plek onbekend',
-    herken:['haagse bos','haagsche bos','bos'], gps:true, buiten:true,
-    bevestig:'U bent in het Haagse Bos in Den Haag.', ambulanceNa:'6:00' },
-  { naam:'Drenkeling', adres:'Kies strand, zwembad of Laakkade',
-    herken:['haagse bos','haagsche bos','bos','water','oever'], gps:true, buiten:true, drenkeling:true,
-    bevestig:'U bent aan het water in het Haagse Bos in Den Haag.', ambulanceNa:'6:00' },
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' },
-  { naam:'', adres:'', herken:[], bevestig:'', controleGoed:'', controleFout:'' }
-];
-let SC = SCENARIOS[0];
-// GPS en aanrijtijden zijn gesimuleerd; de app haalt geen echte GPS-gegevens op.
-const AMBULANCE_NA_MINUTEN = 8;   // standaard aanrijtijd als een locatie geen eigen 'ambulanceNa' heeft
-const VRAAG_WAT_NA_SECONDEN = 80; // wanneer de meldkamer vraagt wat er gebeurd is (tijdens het reanimeren)
-const $ = id => document.getElementById(id);
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const synth = window.speechSynthesis;
-let voice=null;
-const vkey=v=>v.voiceURI||v.name;
-// hoe de stem woorden moet uitspreken: 112 als losse cijfers, AED als losse letters (aa-ee-dee)
-// Elke stem spreekt afkortingen anders uit; kies op het eerste scherm wat het natuurlijkst klinkt.
-const AED_VARIANTEN=['A E D','A.E.D.','A-E-D','aa ee dee','aeedee'];
-let aedUitspraak='A.E.D.';
-try{ aedUitspraak=localStorage.getItem('aedUitspraak2')||aedUitspraak; }catch(e){}
-function speakable(t){
-  return t.replace(/\b112\b/g,'één één twee')
-          .replace(/\bAED'?s\b/g, aedUitspraak+"'s")
-          .replace(/\bAED\b/g, aedUitspraak);
-}
-function voiceQuality(v){
-  const n=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase();
-  if(/premium/.test(n)) return 'Premium';
-  if(/enhanced|verbeterd|uitgebreid/.test(n)) return 'Verbeterd';
-  if(/natural|neural|online/.test(n)) return 'Natuurlijk';
-  if(/compact/.test(n)) return 'Standaard';
-  return '';
-}
-function voiceScore(v){
-  const n=((v.name||'')+' '+(v.voiceURI||'')).toLowerCase(); let sc=0;
-  if(v.lang==='nl-NL'||v.lang==='nl_NL') sc+=10; else if((v.lang||'').toLowerCase().startsWith('nl')) sc+=5; else return -1;
-  if(/premium/.test(n)) sc+=9; if(/enhanced|verbeterd|uitgebreid/.test(n)) sc+=7;
-  if(/natural|neural|online/.test(n)) sc+=7; if(/google/.test(n)) sc+=3;
-  if(/claire|xander|fenna|maarten|colette|ellen/.test(n)) sc+=2;
-  if(/compact/.test(n)) sc-=3;
-  if(/eloquence|grandma|grandpa|\boma\b|\bopa\b|rocko|shelley|\bflo\b|\breed\b|sandy|eddy/.test(n)) sc-=6;
-  return sc;
-}
-function listAllVoices(){
-  const ol=document.getElementById('voiceAll'); if(!ol||!synth) return;
-  const vs=synth.getVoices(); ol.innerHTML='';
-  if(!vs.length){ const li=document.createElement('li'); li.textContent='Safari geeft (nog) geen stemmen door.'; ol.appendChild(li); return; }
-  vs.slice().sort((a,b)=>(voiceScore(b)>=0)-(voiceScore(a)>=0) || (a.lang||'').localeCompare(b.lang||'')).forEach(v=>{
-    const li=document.createElement('li'); const q=voiceQuality(v);
-    li.textContent=v.name+'  ['+(v.lang||'?')+']'+(q?'  '+q:'')+(voiceScore(v)>=0?'  ✓ bruikbaar':'');
-    if(voiceScore(v)>=0) li.style.fontWeight='600';
-    ol.appendChild(li);
-  });
-}
-function nlVoices(){ return synth ? synth.getVoices().filter(v=>voiceScore(v)>=0).sort((a,b)=>voiceScore(b)-voiceScore(a)) : []; }
-let voice112=null;
-function pickVoice(){
-  if(!synth) return; const vs=nlVoices(); let s112=null, sAmb=null;
-  try{ s112=localStorage.getItem('stem112'); sAmb=localStorage.getItem('stemAmb')||localStorage.getItem('meldkamerStem'); }catch(e){}
-  const pick=k=>vs.find(v=>vkey(v)===k||v.name===k);
-  voice = pick(sAmb) || vs[0] || null;
-  voice112 = pick(s112) || vs.find(v=>!voice || v.name!==voice.name) || voice;
-  [['voiceSel112',voice112],['voiceSelAmb',voice]].forEach(([id,cur])=>{
-    const sel=document.getElementById(id); if(!sel) return; sel.innerHTML='';
-    vs.forEach(v=>{ const o=document.createElement('option'); o.value=vkey(v); const q=voiceQuality(v); o.textContent=v.name.replace(/\s*\(.*?\)\s*/g,' ').trim()+(q?' ('+q+')':'')+((v.lang||'').toLowerCase().includes('be')?', Vlaams':''); if(cur&&vkey(v)===vkey(cur)) o.selected=true; sel.appendChild(o); });
-    listAllVoices();
-    const cnt=document.getElementById('voiceCount'); if(cnt && Date.now()>(window.voiceMsgUntil||0)) cnt.textContent=vs.length+' Nederlandse stem'+(vs.length===1?'':'men')+' gevonden.';
-    if(!vs.length){ const o=document.createElement('option'); o.textContent='Geen Nederlandse stem gevonden'; sel.appendChild(o); }
-  });
-}
-// dezelfde stem voor beide? Dan klinkt de centralist iets lager, zodat je het verschil hoort
-function roleVoice(role){
-  const v = role==='112' ? voice112 : voice;
-  const same = voice112 && voice && vkey(voice112)===vkey(voice);
-  return { v, pitch: same ? (role==='112' ? 0.8 : 1.12) : 1 };
-}
-if(synth){ [0,400,1500,4000].forEach(t=>setTimeout(pickVoice,t)); synth.onvoiceschanged=pickVoice; }
-$('supportNote').textContent = SR
-  ? 'Zet het volume hoog. De meldkamer luistert als het bolletje groen is.'
-  : 'Deze browser ondersteunt geen spraakherkenning. Gebruik Safari op de iPhone of Chrome op Android.';
-
-/* ---------------- state ---------------- */
-let S;
-function reset(){
-  S={ phase:'idle', t0:0, micOk:!!SR, speaking:false, busy:false, rec:null,
-      heardNumbers:false, sawTen:false, lastSpeech:0, openStart:0, counted:false,
-      slots:{address:null, unresp:false, noBreath:false, cpr:false}, vol:{address:false,unresp:false,noBreath:false,cpr:false},
-      pendingQ:null, asked:new Set(), reprompts:0, retries:{}, wrongBreath:false, wrongUnresp:false,
-      tHelp:null, speaker:false, tSpeaker:null, tDial:0, cprBefore:false, aed:false, stoppedEarly:false, timers:[], beatId:null, wake:null };
-}
-reset();
-const now=()=>performance.now();
-const elapsed=()=>(now()-S.t0)/1000;
-const fmt=s=>{ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
-const later=(fn,ms)=>{ const id=setTimeout(fn,ms); S.timers.push(id); return id; };
-
-/* ---------------- ui ---------------- */
-function setInd(mode, txt){ const el=$('listenInd'); el.className='pill'+(mode?' '+mode:''); $('listenTxt').textContent=txt; }
-let transcript=[];
-function addMsg(kind, text){
-  transcript.push([kind,text]);
-  if(kind==='disp'){ $('capDisp').textContent=text; $('capMe').textContent=''; }
-  else if(kind==='me'||kind==='count'){ $('capMe').textContent='Jij: '+text; }
-}
-function note(t){ addMsg('note', t); }
-
-/* ---------------- audio ---------------- */
-let actx=null, master=null;
-const EAR=0.35, SPK=1; // zonder luidspreker klinkt alles zacht, zoals aan je oor
-function out(){ if(!master){ master=actx.createGain(); master.gain.value=1; master.connect(actx.destination); } return master; }
-function setVolume(v){ if(actx) out().gain.setTargetAtTime(v, actx.currentTime, 0.03); }
-function beep(freq,dur,vol){ if(!actx) return; const o=actx.createOscillator(), g=actx.createGain();
-  o.frequency.value=freq; g.gain.value=vol; o.connect(g); g.connect(out()); o.start(); o.stop(actx.currentTime+dur); }
-function setSpeaker(on){
-  S.speaker=on; $('spkBtn').setAttribute('aria-pressed', on?'true':'false');
-  setVolume(on?SPK:EAR);
-  if(on && S.tSpeaker===null && S.t0) S.tSpeaker=(now()-S.tDial)/1000;
-}
-function startMetronome(){
-  if(S.beatId) return;
-  $('cprPill').classList.remove('hidden');
-  S.beatId=setInterval(()=>{ const h=$('cprDot'); h.classList.add('beat'); setTimeout(()=>h.classList.remove('beat'),110); }, 60000/110);
-}
-function stopMetronome(){ clearInterval(S.beatId); S.beatId=null; }
-
-/* ---------------- speech out ---------------- */
-function say(text, then){
-  const zij=S.pron==='zij';
-  text=text.replace(/\{door\}/g, S.aed ? 'Volg de instructies van de AED.' : 'Blijf doordrukken.');
-  text=text.replace(/\{hij\}/g,zij?'zij':'hij').replace(/\{hem\}/g,zij?'haar':'hem').replace(/\{zijn\}/g,zij?'haar':'zijn');
-  addMsg('disp', text);
-  stopRec(); S.speaking=true; setInd('talk','Meldkamer spreekt…');
-  // elke zin krijgt een eigen nummer, zodat een oude zin nooit nog een keer het vervolg start
-  const id=S.sayId=(S.sayId||0)+1;
-  let fired=false;
-  const done=()=>{ if(fired || S.sayId!==id) return; fired=true; S.speaking=false; if(S.phase!=='done' && then) then(); };
-  if(!synth){ setTimeout(done,500); return; }
-  synth.cancel();
-  const u=new SpeechSynthesisUtterance(speakable(text)); u.lang='nl-NL'; const rv=roleVoice(S.role||'112'); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; u.volume=S.speaker?1:0.25;
-  u.onend=done; u.onerror=done; later(done, 1800+text.length*85);
-  synth.speak(u);
-}
-
-/* ---------------- speech in ---------------- */
-const NUMTOK=/^(een|één|twee|drie|vier|vijf|zes|zeven|acht|negen|tien|elf|twaalf|\S*tien|\S*twintig|dertig|\d+|en|eh|uh|ehm|hm)$/;
-const tokens=t=>t.toLowerCase().replace(/[.,!?;:-]/g,' ').split(/\s+/).filter(Boolean);
-const isCountOnly=t=>{ const k=tokens(t); return k.length>0 && k.every(w=>NUMTOK.test(w)); };
-const hasNumber=t=>tokens(t).some(w=>w!=='en' && NUMTOK.test(w));
-
-function canListen(){ return SR && S.micOk && !S.speaking && (S.phase==='opening'||S.phase==='questions'||S.phase==='cpr'); }
-function startRec(){
-  if(!canListen() || S.rec) return;
-  let r;
-  try{ r=new SR(); }catch(e){ return; }
-  S.rec=r; r.lang='nl-NL'; r.continuous=true; r.interimResults=true; r.maxAlternatives=3;
-  r.onresult=e=>{
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const res=e.results[i]; const txt=res[0].transcript;
-      S.lastSpeech=now();
-      if(!isCountOnly(txt)){ S.lastTalk=now(); if(S.bufT){ clearTimeout(S.bufT); S.bufT=setTimeout(flushBuf, 600); } }
-      if(S.phase==='opening' && hasNumber(txt)){ S.heardNumbers=true; if(/\btien\b|\b10\b/.test(txt.toLowerCase())) S.sawTen=true; }
-      if(res.isFinal){ const alts=[]; for(let j=0;j<res.length;j++) alts.push(res[j].transcript); onFinal(alts); }
-    }
-  };
-  r.onerror=e=>{ if(['not-allowed','service-not-allowed','audio-capture','network'].includes(e.error)) micFailed(e.error); };
-  r.onend=()=>{ if(S.rec===r) S.rec=null; if(canListen()) setTimeout(startRec,150); };
-  try{ r.start(); }catch(e){ S.rec=null; return; }
-  setInd('on', S.phase==='opening' ? 'Meldkamer luistert mee' : S.phase==='cpr' ? 'Meldkamer luistert, blijf drukken' : 'Spreek maar');
-}
-function stopRec(){ const r=S.rec; S.rec=null; if(r){ r.onend=null; try{ r.abort(); }catch(e){} } }
-const MIC_MSG={
-  'none':'Deze app of browser ondersteunt geen spraakherkenning. Open de link in Safari (iPhone) of Chrome (Android), niet in de Claude-app.',
-  'not-allowed':'Geen toegang tot de microfoon. Open de link in Safari of Chrome en tik op Toestaan als om de microfoon wordt gevraagd.',
-  'service-not-allowed':'Spraakherkenning staat uit. Zet op de iPhone Siri en Dicteren aan via Instellingen, of gebruik Chrome.',
-  'audio-capture':'Er is geen microfoon gevonden.',
-  'network':'Spraakherkenning heeft een internetverbinding nodig.'
-};
-function micFailed(reason){
-  S.micOk=false; stopRec();
-  const msg=MIC_MSG[reason]||MIC_MSG['not-allowed'];
-  setInd('off', msg+' Tik om opnieuw te proberen.');
-}
-$('listenInd').onclick=()=>{ if(S.micOk || !SR) return; S.micOk=true; $('capMe').textContent=''; startRec(); };
-
-/* ---------------- dialogue ---------------- */
-// Gespreksboom: alle spontaan gemelde informatie blijft behouden.
-const Q={
+/* Vragen en meldkamerteksten. Verander alleen de tekst tussen aanhalingstekens. */
+const VRAGEN={
  opening:{ask:'112, welke hulpdienst wilt u spreken: ambulance, brandweer of politie?',short:'Welke hulpdienst wilt u spreken?'},
  incident:{ask:'Wat is het noodgeval?',short:'Wat is er aan de hand?'},
  address:{ask:'Wat is het adres? Noem straat, huisnummer en plaats.',short:'Wat is het adres?'},
@@ -440,677 +14,135 @@ const Q={
  assessment:{ask:'Wat ziet u precies? Reageert de persoon duidelijk en ademt die normaal?',short:'Wat ziet u nu?'},
  access:{ask:'Waar in het gebouw ligt de persoon? Welke ingang kunnen de hulpverleners gebruiken?',short:'Waar ligt de persoon precies?'}
 };
-function dispatch(){
- if(!S.dispatched && S.slots.address!==null && (S.slots.cpr || S.slots.unresp)){
-  S.dispatched=true; S.tHelp=elapsed();
-  return 'Er zijn twee ambulances met spoed naar u onderweg. De burgerhulpverlening is geactiveerd. Er kunnen burgerhulpverleners bij u aankomen, mogelijk met een AED. Ik blijf aan de lijn.';
- }
- return '';
-}
-function nextQ(){
- if(!S.incident) return 'incident';
- if(S.slots.address===null) return SC.gps?'gpsConfirm':'address';
- if(SC.drenkeling && !S.waterSafe) return 'waterSafety';
- if(!S.slots.cpr){if(!S.slots.unresp) return 'unresp'; if(!S.slots.noBreath) return 'breath';}
- if(S.knows===undefined) return 'know';
- return null;
-}
-function ask(q,prefix){
- if(q==='gpsConfirm'){S.pendingQ=q;S.reprompts=0;S.asked.add(q);return say([prefix,'Ik zie uw locatie bij '+(SC.gpsLabel||'het Haagse Bos in Den Haag')+'. Klopt dat? Ik kan de GPS-locatie doorgeven aan de hulpverleners.'].filter(Boolean).join(' '),listenQ);}
- S.pendingQ=q; S.reprompts=0; if(q!=='opening') S.asked.add(q);
- if(q==='access' && SC.buiten){S.pendingQ=q;return say([prefix,'Ziet u een herkenningspunt, zoals een brug, pad, bord of ingang? Blijf bij de persoon.'].filter(Boolean).join(' '),listenQ);}
- if(q==='know' && SC.drenkeling){return say([prefix,'Weet u wat u moet doen bij de reanimatie van een drenkeling?'].filter(Boolean).join(' '),listenQ);}
- if(q!=='opening') $('callTitle').textContent='Meldkamer '+(S.desk||'ambulance');
- say([prefix,Q[q].ask].filter(Boolean).join(' '),listenQ);
-}
-function listenQ(){ S.busy=false; startRec(); armSilence(); }
-function armSilence(){
-  const q=S.pendingQ;
-  later(function check(){
-    if(S.phase!=='questions' || S.pendingQ!==q) return;
-    if(S.busy || S.speaking || now()-S.lastSpeech<4000){ later(check,3000); return; }
-    if(S.reprompts>=1 || (q==='address'||q==='ambOpen') && S.slots.address) return;
-    S.reprompts++; S.busy=true;
-    say('Hallo, hoort u mij? '+Q[q].short, listenQ);
-  }, 15000);
-}
 
-function extract(m, isOpening){
-  const got=[];
- if(SC.drenkeling && /uit het water|op de (oever|kant)|op het (strand|droge)|veilig op de kant/.test(m) && !/niet uit|nog niet/.test(m)) S.waterSafe=true;
-  if(/reanim|bewusteloos|reageert|adem|onwel|ingestort|drenkeling|verdronken|uit het water|ligt.{0,15}(grond|vloer)|in elkaar/.test(m)) S.incident=true;
-  if(S.slots.address===null && addressComplete(m)){ S.slots.address=elapsed(); got.push('address'); }
-  if(!S.slots.unresp && /reageert niet|reageerde niet|niet reageert|niet reageerde|nergens op reageert|niet aanspreekbaar|bewusteloos|geen reactie|reageert nergens|niet bij bewustzijn|buiten bewustzijn/.test(m)){ S.slots.unresp=true; got.push('unresp'); }
-  if(!S.slots.noBreath && /(ademt|ademhaling)[^|]{0,15}\b(niet|geen)\b|\bniet\b[^|]{0,12}ademt|geen (normale )?ademhaling|happ?end|snurk|gasp|naar adem/.test(m)){ S.slots.noBreath=true; got.push('noBreath'); }
-  if(!S.slots.cpr && /(ik|we|wij).{0,25}(reanimeer|aan het reanimeren|gestart met reanim|begonnen met reanim|geef.{0,10}borstcompress|druk.{0,10}borst)|reanimatie (is )?(gestart|begonnen)/.test(m) && !/niet.{0,15}reanim|hoe.{0,15}reanim|moet.{0,10}reanim/.test(m)){ S.slots.cpr=true; got.push('cpr'); startMetronome(); }
-  if(!S.aed && /\baed\b|a e d|a\.e\.d|defibrillator|hartstarter/.test(m) && !/stuur|komt|onderweg|waar|haal|geen|niet|beschikbaar|hangt/.test(m)){ S.aed=true; S.aedEarly=true; S.aedState='present'; got.push('aed'); }
-  if(!S.aed && S.aedState!=='fetching' && /(haal|haalt|halen|gehaald|ophalen|pakt|rent|weggestuurd|gestuurd).{0,45}(aed|a e d|defibrillator|hartstarter)|(aed|a e d|defibrillator|hartstarter).{0,25}(halen|gehaald|ophalen|onderweg)/.test(m)){ S.aedState='fetching'; got.push('aedFetch'); }
-  if(S.knows===undefined && !/weet (ik )?niet|niet zeker|twijfel|niet hoe/.test(m) && /bhv|ehbo|cursus|geleerd|getraind|opgeleid|verpleegkundige|\barts\b|kan reanimeren|weet hoe|weet wat ik (doe|moet doen)/.test(m)){ S.knows=true; got.push('knows'); }
-  if(updateHelpers(m)) got.push('helpers');
-  if(!S.pron && /vrouw|mevrouw|meisje|dame|\bzij\b|\bze\b|\bhaar\b/.test(m)) S.pron='zij';
-  if(!S.pron && /\bman\b|meneer|jongen|\bhij\b|\bhem\b/.test(m)) S.pron='hij';
-  if(!S.what && /fiets|gevallen|viel|val |in elkaar|zakte|onwel|flauw|botsing|aangereden|sport|pijn op de borst|opeens|plotseling/.test(m)){ S.what=true; }
-  if(isOpening) got.forEach(k=>S.vol[k]=true);
-  return got;
-}
-
-const talking=()=>now()-(S.lastTalk||0) < 2500; // de student is net aan het praten (tellen telt niet mee)
-// Wacht even na een zin: praat de student nog door, dan worden de stukjes samengevoegd.
-function onFinal(alts){
-  const first=alts[0].trim(); if(!first) return;
-  if(S.phase==='questions' || S.phase==='cpr'){
-    if(isCountOnly(first)){ if(S.phase==='questions') addMsg('count', first); return; }
-    (S.bufFirst=S.bufFirst||[]).push(first); (S.bufAll=S.bufAll||[]).push(alts.join(' | '));
-    clearTimeout(S.bufT); S.bufT=setTimeout(flushBuf, 600);
-    return;
-  }
-  onFinalNow(alts);
-}
-function flushBuf(){
-  S.bufT=null; if(!S.bufFirst||!S.bufFirst.length) return;
-  const first=S.bufFirst.join(' '), all=S.bufAll.join(' | '); S.bufFirst=[]; S.bufAll=[];
-  onFinalNow([first, all]);
-}
-function onFinalNow(alts){
-  const first=alts[0].trim(); if(!first) return;
-  const m=first.toLowerCase();
-  if(S.phase==='opening'){
-    if(isCountOnly(first)){ S.counted=true; addMsg('count', first); return; }
-    // student begint zelf te praten: vraag overslaan en direct overnemen
-    if(S.heardNumbers) S.counted=true;
-    S.phase='questions'; S.busy=true; addMsg('me', first);
-    return respond(m, 'opening');
-  }
-  if(S.phase==='questions'){
-    if(S.busy || S.speaking) return;
-    if(isCountOnly(first)){ addMsg('count', first); return; }
-    S.busy=true; stopRec(); addMsg('me', first);
-    return respond(m, S.pendingQ);
-  }
-  if(S.phase==='cpr'){
-    if(S.speaking || isCountOnly(first)) return;
-    handleCpr(first, m);
-  }
-}
-
-function addressComplete(m){
- if(SC.gps) return false; // Eerst de gesimuleerde GPS-positie bij de beller controleren.
- const number=(SC.adres.match(/\d+/)||[])[0];
- const place=SC.adres.split(',').slice(1).join(',').trim().toLowerCase();
- const digits=number && new RegExp('\\b'+number+'\\b').test(m);
- const spoken=number==='75' && /vijf\s*en\s*zeventig|vijfenzeventig/.test(m);
- return SC.herken.some(w=>m.includes(w)) && (digits||spoken) && (!place||m.includes(place));
-}
-function connectDesk(desk){
- S.desk=desk; S.busy=true;
- say('Een moment, ik verbind u door met de meldkamer '+desk+'.',()=>{
-  setInd('talk','Doorverbinden…'); ring();
-  later(()=>{
-   if(S.phase!=='questions') return;
-   S.role='amb'; $('callTitle').textContent='Meldkamer '+desk;
-   if(desk!=='ambulance') return ask('incident','Meldkamer '+desk+'.');
-   S.firstAmb=true;
-   advance(['Meldkamer ambulance.',S.incident?'Ik begrijp uw melding.':'']);
-  },1400);
- });
-}
-function service(m){
- extract(m,true);
- if(/ambulance|ziekenwagen/.test(m)){S.service='goed';return connectDesk('ambulance');}
- if(/brandweer|politie/.test(m)){S.service='omweg'; return connectDesk(/brandweer/.test(m)?'brandweer':'politie');}
- if(S.incident){S.service='omweg';return connectDesk('ambulance');}
- return ask('opening');
-}
-function advance(acks=[]){
- const send=dispatch(); if(send) acks.push(send);
- const next=nextQ();
- if(next) return ask(next,acks.filter(Boolean).join(' '));
- startCpr(acks.filter(Boolean));
-}
-function respond(m,q){
- if(q==='opening') return service(m);
- const got=extract(m,!!S.firstAmb); S.firstAmb=false;
- const acks=[];
- if(q==='gpsConfirm'){
-  if(/\bnee\b|niet in|klopt niet|verkeerd/.test(m)) return ask('address','Dan klopt de locatie op mijn scherm niet. Waar bent u wel?');
-  if(/\bja\b|bos|strand|scheveningen|zwembad|laakkade|klopt|weet (ik )?niet|geen idee|onbekend/.test(m)){
-   S.slots.address=elapsed(); S.gpsConfirmed=true;
-   acks.push('Ik geef de GPS-locatie bij '+(SC.gpsLabel||'het Haagse Bos in Den Haag')+' door aan de hulpverleners. U hoeft geen straat of huisnummer te zoeken.');
-  }else return ask('gpsConfirm');
- }
- if(SC.drenkeling && /nog in het water|ligt in het water|niet uit het water/.test(m)) return ask('waterSafety','Breng uzelf niet in gevaar.');
- if(q==='waterSafety'){
-  if(/\bnee\b|niet veilig|nog in/.test(m)) return say('Ga niet zelf het water in als dat onveilig is. Ik geef door dat redding uit het water nodig is. De hulpdiensten worden voor een waterredding ingezet. Blijf op een veilige plek. Vertel het zodra de persoon veilig uit het water is.',listenQ);
-  if(/\bja\b|uit het water|op de oever/.test(m)){S.waterSafe=true;acks.push('Goed dat de persoon uit het water is.');}
-  else return ask('waterSafety');
- }
- if(S.desk && S.desk!=='ambulance'){
-  if(S.incident) return connectDesk('ambulance');
-  return ask('incident','Kunt u vertellen wat er aan de hand is?');
- }
- if(q==='know'){
-  if(/twijfel|een beetje|niet zeker/.test(m)) return ask('clarify');
-  if(/\bnee\b|weet (ik )?niet|geen idee|nooit|help|kan (het )?niet/.test(m)) S.knows=false;
-  else if(/\bja\b|weet|kan|cursus|bhv/.test(m)) S.knows=true;
-  else return ask('know','Ik heb uw antwoord niet goed verstaan.');
- }
- if(q==='clarify'){
-  S.knows=false; acks.push('Ik geef u de stappen voor de reanimatie.');
- }
- if(q==='unresp' && !S.slots.unresp){
-  if(/\bnee\b|geen reactie/.test(m)) S.slots.unresp=true;
-  else if(/\bja\b|reageert wel/.test(m)) return ask('assessment');
- }
- if(q==='breath' && !S.slots.noBreath){
-  if(/\bnee\b|hap|snurk|twijfel|weet (ik )?niet/.test(m)) S.slots.noBreath=true;
-  else if(/\bja\b|normaal/.test(m)) return ask('assessment','Houd de luchtweg vrij en blijf de ademhaling controleren.');
- }
- if(q==='assessment'){
-  if(S.slots.cpr || /geen reactie|reageert niet/.test(m) && /niet normaal|geen adem|hap/.test(m)) return advance();
-  return say('Blijf bij de persoon en houd de luchtweg vrij. Ik blijf aan de lijn. Vertel het meteen als de toestand verandert.',listenQ);
- }
- if(got.includes('address')) acks.push('Ik heb '+SC.adres+' genoteerd.');
- if(got.includes('cpr')) acks.push('Goed dat u bent begonnen.');
- if(got.includes('aedFetch')) acks.push('Prima, goed dat u al iemand voor de AED heeft gestuurd.');
- if(/verdieping|lokaal|ruimte|ingang|receptie/.test(m)) S.accessGiven=true;
- if(/geen (aed|a e d)|aed.{0,15}niet (beschikbaar|aanwezig|bereikbaar)/.test(m)) S.aedAbsent=true;
- if(q==='address' && SC.gps && /straat|weg|laan|plein|ingang|brug|pad/.test(m) && /\d|den haag/.test(m)){S.slots.address=elapsed();acks.push('Ik noteer uw opgegeven locatie en geef die door aan de hulpverleners.');}
- if(q==='address' && S.slots.address===null) acks.push('Ik heb nog het volledige adres nodig, met huisnummer en plaats.');
- advance(acks);
-}
-
-/* ---------------- reanimatie ---------------- */
-function siren(seconds){
-  // Nederlandse twee-tonige sirene, begint heel zacht (ver weg) en wordt steeds harder
-  if(!actx) return;
-  const t0=actx.currentTime, o=actx.createOscillator(), f=actx.createBiquadFilter(), g=actx.createGain();
-  o.type='triangle'; f.type='lowpass';
-  f.frequency.setValueAtTime(700,t0); f.frequency.linearRampToValueAtTime(3500,t0+seconds);
-  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.45,t0+seconds*0.9);
-  g.gain.linearRampToValueAtTime(0.0001,t0+seconds);
-  for(let t=0;t<seconds;t+=1.3){ o.frequency.setValueAtTime(440,t0+t); o.frequency.setValueAtTime(587,t0+t+0.65); }
-  o.connect(f); f.connect(g); g.connect(out()); o.start(t0); o.stop(t0+seconds);
-}
-const SIREN=28; // de sirene is 28 seconden hoorbaar en is op de aanrijtijd het hardst
-function arriveSec(){
-  const t=SC.ambulanceNa; if(!t) return AMBULANCE_NA_MINUTEN*60;
-  const [mm,ss]=String(t).split(':').map(Number); return mm*60+(ss||0);
-}
-function ambulanceArrives(){
-  if(S.phase!=='cpr' || S.handover) return;
-  siren(SIREN);
-  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()||talking()){ later(t,2500); return; } say(hasHelp() ? 'Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. Ga door tot het ambulanceteam het overneemt.' : 'Ik hoor de sirene, de ambulance is er bijna. Blijf bij de persoon en ga door tot het ambulanceteam het overneemt.', startRec); }, 12000);
-  later(function t(){ if(S.phase!=='cpr' || S.handover) return; if(S.speaking||quiet()||talking()){ later(t,2500); return; } say('De ambulance is bij u. Ga door totdat de hulpverleners het overnemen. Geef daarna kort door wat er is gebeurd en wat de AED heeft aangegeven.', startRec); }, (SIREN+10)*1000);
-}
-const CPR_MAX=12*60; // veiligheidsgrens: na 12 minuten stopt de oefening vanzelf
-/* ---- helpers: wie is er NU bij het slachtoffer (de beller niet meegeteld)? ----
-   S.helpers = aantal aanwezige helpers (null = onbekend), S.away = helpers die weg zijn (bijv. AED halen) */
-const hasHelp=()=>S.helpers>0;
-function updateHelpers(m){
-  let changed=false; const set=(h,a)=>{ if(h!==S.helpers||a!==S.away){ S.helpers=h; S.away=a; changed=true; } };
-  const A=S.away||0; let counted=false;
-  if(/met z.?n (drie|drieën)|met ons (drie|drieën)|(we|wij) (zijn|waren) met (drie|drieën)/.test(m)){ set(2, A); counted=true; }
-  else if(/met z.?n twee|met ons twee|(we|wij) (zijn|waren) met (twee|tweeën)/.test(m)){ set(1, A); counted=true; }
-  // helper gaat weg (AED halen, weglopen)
-  if(/(collega|iemand|hij|zij|ze|die|één|een van|mijn (vriend|vriendin|man|vrouw)).{0,25}(haalt|gaat .{0,12}(halen|pakken|zoeken)|rent|loopt weg|is weg|weer weg|gaat weg)/.test(m)){
-    const h=S.helpers==null?0:S.helpers; set(Math.max(0,h-1), (S.away||0)+1);
-  }
-  // helper terug of extra helper erbij
-  if(/(is|zijn) (weer )?terug|komt terug/.test(m) || (!counted && /er is (nog )?iemand (bij|gekomen)|er komt iemand|(collega|bhv.?er|iemand) (is|komt) (erbij|hier|er)|nog een bhv|tweede (helper|bhv|hulpverlener)|iemand helpt|er is hulp|collega doet|collega is hier/.test(m))){
-    const a=S.away||0, h=S.helpers==null?0:S.helpers; set(h+1, Math.max(0,a-1));
-  }
-  if(/ik ben (nu )?(weer )?alleen|alleen bij (hem|haar)|niemand (anders|bij)|er is niemand|niemand hier/.test(m)) set(0, S.away||0);
-  return changed;
-}
-function helperReply(){
-  if(hasHelp()) return 'Duidelijk, er is nog iemand bij u. Laat die persoon zo nodig helpen of straks het drukken overnemen. Wissel ongeveer elke twee minuten, liefst tijdens de analyse van de AED.';
-  if((S.away||0)>0) return 'Duidelijk, u bent nu alleen bij de persoon. Blijf reanimeren en houd de telefoon op de luidspreker. Zeg het zodra uw collega terug is.';
-  return 'Duidelijk, u bent alleen. Ik blijf aan de lijn. {door}';
-}
-
-const COACH=[
-  [30,()=>'Blijf stevig en snel drukken, ongeveer twee keer per seconde. Ik blijf aan de lijn.'],
-  [70,()=>'Gaat het nog? We doen dit stap voor stap. De hulp is onderweg.'],
-  [115,()=>hasHelp() ? 'Het is bijna twee minuten. Wissel straks van wie er drukt, snel en zonder pauze.' : null],
-];
-for(let k=2;k<=5;k++){
-  COACH.push([120*k-60, ()=> k%2 ? 'Houd vol, de hulp komt eraan. Ik blijf aan de lijn.' : 'Gaat het nog? Zeg het als u moe wordt.']);
-  COACH.push([120*k, ()=> hasHelp() ? 'Weer twee minuten. Wissel als dat kan, zonder pauze.' : null]);
-}
-const AEDW='(aed|a e d|a\\.e\\.d|ae d|a ee d|defibrillator|hartstarter)';
-const CPR_REPLIES=[
-  [/stop de oefening|einde oefening|oefening stoppen/, null, 'stop'],
-  [/ambulance is (er|hier|binnen|gearriveerd|aangekomen)|ambulance staat|hulpverleners zijn er|ambulancepersoneel|ambulance neemt|ambulanceteam is/, 'Fijn. Vertel de hulpverleners waar de persoon ligt, en geef kort door wanneer u hem aantrof, wanneer de reanimatie begon en wat de AED heeft aangegeven. Laat hen de zorg overnemen. Ik hang nu op.', 'handover'],
-  [/aanrij|hoe lang (duurt|nog)|hoe ver|wanneer (is|zijn|komt|komen)|waar blijft de ambulance|hoelang/, 'De ambulances zijn met spoed onderweg. Een exacte tijd kan ik niet geven. Ik blijf aan de lijn. {door}', 'aedok'],
-  [/politie/, 'De ambulancezorg en burgerhulpverlening zijn gealarmeerd. Ik geef uw vraag over politie door.', 'aedok'],
-  [/brandweer/, 'De ambulancezorg en burgerhulpverlening zijn gealarmeerd. Ik geef uw vraag over brandweer door.', 'aedok'],
-  [/met z.?n (twee|drie)|met ons (twee|drie)|tweede|collega|nog iemand|iemand bij (me|mij|ons)|iemand helpt|er is hulp|bhv.?er (is|komt)|nog een bhv|alleen|terug|niemand/, ()=>helperReply(), 'aedok'],
-  [/kan (niet|geen) beadem|wil niet beadem|niet beademen|zonder beadem/, 'Dat is goed. Blijf zonder onderbreking borstcompressies geven. Ik blijf aan de lijn.', 'aedok'],
-  [/borst.{0,20}(niet omhoog|komt niet|gaat niet)/, 'Kantel het hoofd iets verder achterover en til de kin op. Probeer het nog één keer en ga dan direct verder met drukken.', 'aedok'],
-  [/(weet niet hoe|hoe moet ik) .{0,10}beadem|beadem.{0,20}(hoe|uitleg)/, 'Kantel het hoofd achterover en til de kin op. Na dertig keer drukken geeft u twee rustige beademingen, tot u de borstkas ziet omhoogkomen. Ga dan direct verder met drukken.', 'aedok'],
-  [/beadem|mond op mond|blazen|lucht in|30.?2|dertig.{0,6}twee|pocket ?mask|masker/, 'Ga daarmee door: dertig keer drukken en twee keer beademen, met zo kort mogelijke pauzes. Lukt beademen niet, dan alleen drukken.', 'aedok'],
-  [/tel kwijt|kwijt met tellen|weet niet meer hoeveel/, 'Dat geeft niet. Blijf stevig en snel drukken, ongeveer twee keer per seconde.', 'aedok'],
-  [/doe ik het goed|klopt het|is dit goed/, 'Blijf in een stevig ritme drukken, ongeveer twee keer per seconde. Laat de borstkas na elke keer helemaal terugveren.'],
-  [/waar (moet ik )?drukken|welke plek|hoe (moet|doe) ik/, 'Midden op de borstkas, handen op elkaar, armen gestrekt. Vijf tot zes centimeter diep, ongeveer twee keer per seconde.'],
-  [/breken|kapot|pijn doen/, 'Ik begrijp dat het spannend is. De persoon reageert niet en ademt niet normaal. Blijf op de borstkas drukken, ik begeleid u.', 'aedok'],
-  [/mag ik stoppen|moet ik stoppen|kan ik stoppen|stoppen\?/, 'Nee, ga door tot de AED zegt dat u moet stoppen of tot de ambulance het overneemt.', 'aedok'],
-  [/overgeven|braakt|spuugt|kotst|braaksel/, 'Draai het hoofd even opzij en maak de mond schoon. Is {hij} duidelijk bij bewustzijn en ademt {hij} normaal? Zo niet, ga direct weer verder.', 'aedok'],
-  [/opvangen|wijzen|ingang|slagboom|receptie|lift|omstanders|mensen om|toeschouwers/, ()=> hasHelp() ? 'Goed. Laat iemand bij de ingang staan om de ambulance de weg te wijzen.' : 'U blijft bij de persoon. Ik geef de ingang door aan de ambulance.', 'aedok'],
-  [/hoort u mij|hoor je mij|bent u (er )?nog|ben je er nog|hallo/, 'Ja, ik hoor u. Ik blijf aan de lijn.', 'aedok'],
-  [/bloed/, 'Ga door met reanimeren, dat is nu het belangrijkste. De ambulance kijkt daar straks naar.'],
-  [/pacemaker|bultje/, 'De AED kan gewoon gebruikt worden. Plak de elektrode niet op het zichtbare apparaat, maar er iets naast, en volg de AED.', 'aedok'],
-  [/zwanger/, 'Ga gewoon door met reanimeren. Ik geef het door aan de ambulance.', 'aedok'],
-  [/\bnat\b|regen|water|plas/, 'Droog de plekken voor de elektroden snel af, zodat ze goed contact maken. Plak ze en volg de AED.', 'aedok'],
-  [/borsthaar|behaard|haren/, 'Scheer of trek het haar weg waar de elektroden komen, als er een scheermesje bij de AED zit. Anders stevig aandrukken.', 'aedok'],
-  [/sieraden|ketting|piercing|\bbh\b|beugel/, 'Zorg dat de elektroden niet op metaal komen. Schuif het opzij en plak op de blote huid.', 'aedok'],
-  [/baby|kind|kindje|peuter/, 'Dit oefenscenario is voor een volwassene. Voor kinderen en baby\'s gelden andere instructies; die oefent u apart.', 'aedok'],
-  [/bedankt|dank je|dank u/, 'Graag gedaan. Ik blijf aan de lijn.', 'aedok'],
-  [/overne|wissel|afloss|neemt het|nemen het/, ()=> hasHelp() ? 'Goed. Wissel snel en ga meteen door, zonder pauze.' : 'Is er iemand bij u gekomen? Laat die het drukken dan overnemen, zonder pauze.', 'aedok'],
-  [/moe|kan niet meer|zwaar|uitgeput/, ()=> hasHelp() ? 'Laat de ander het drukken overnemen, snel en zonder pauze.' : 'Ik hoor dat het zwaar is. Blijf doen wat u kunt. Zodra iemand bij u komt, laat die het drukken overnemen. Ik blijf aan de lijn.', 'aedok'],
-  [/hoe lang|wanneer|ambulance|komt er/, 'De ambulances zijn onderweg. Ga door tot de hulpverleners het van u overnemen.', 'aedok'],
-  [/hoe diep|hoe hard|hoe snel/, 'Vijf tot zes centimeter diep, ongeveer twee keer per seconde. Laat de borstkas steeds helemaal terugkomen.'],
-  [/rib|kraak|knap/, 'Dat kan gebeuren. Ga gewoon door, dat is nu het belangrijkste.', 'aedok'],
-  [/bang|eng|spannend|help/, 'Ik blijf aan de lijn. We doen dit stap voor stap.', 'aedok']
-];
-/* ---- AED: volgt stap voor stap waar de student is ----
-   none -> gehaald -> er -> aansluiten -> analyse -> schok / geen schok -> weer drukken
-   Tijdens aansluiten en analyse praat de meldkamer niet door de AED heen. */
-const has=(re,m)=>new RegExp(re).test(m);
-function quiet(){ return now() < (S.quietUntil||0); }
-function aedHandler(m, first){
-  const aedWord=has(AEDW,m);
-  const st=S.aedState||'none';
-  // zinnen van de student bevatten meestal 'we', 'ik', 'hij' enz.; de AED zelf geeft korte bevelen ('Plak de elektroden')
-  const fromStudent=/\b(we|wij|ik|ze|zij|collega|hij|jullie|u|er)\b|wordt|worden|gaan|hebben|heeft|gegeven|gedaan|geweest|zegt/.test(m);
-  const go=(state, reply, quietSec, always)=>{
-    if(!fromStudent && !always) reply=null;
-    const changed = st!==state;
-    S.aedState=state;
-    if(['present','connecting','analysing','resumed'].includes(state) && !S.aed){ S.aed=true; S.tAed=(now()-S.cprStart)/1000; }
-    if(quietSec) S.quietUntil=now()+quietSec*1000;
-    if(!changed || !reply) return true;            // zelfde stap nog eens gehoord (of de AED zelf): niets zeggen
-    addMsg('me', first); say(typeof reply==='function'?reply():reply, startRec); return true;
-  };
-  // tekenen van leven
-  if(/ademt (weer|normaal)|is wakker|wordt wakker|komt bij|praat/.test(m) && !/niet/.test(m))
-    return go('rosc','Blijf bij {hem} en controleer de ademhaling en reactie voortdurend. Houd de luchtweg vrij. Laat de AED aan en de elektroden zitten. Vertel het meteen als het slechter gaat. Stopt het normale ademen, begin dan direct weer met reanimeren.', 0, true);
-  if(/beweegt|bewoog|ogen open|hoest|kreunt|trekt/.test(m) && !/niet/.test(m)){
-    addMsg('me', first); say('Wat doet {hij} precies? Opent {hij} de ogen, reageert {hij} duidelijk en ademt {hij} normaal? Bij twijfel gaat u door met reanimeren.', startRec); return true;
-  }
-  // analyse
-  if(/schok (geadviseerd|aanbevolen)/.test(m) && !/geen schok/.test(m))
-    return go('analysing','Zorg dat niemand de persoon aanraakt. Volg de AED voor de schok en ga daarna direct verder met reanimeren.', 15);
-  if(/ritme|analys|hartritme|niet aanraken|niemand aanraken|handen (los|eraf|weg)|iedereen los|los van|we stoppen even|laadt op|opladen/.test(m) && !/geen schok/.test(m))
-    return go('analysing','Raak de persoon nu niet aan, en zorg dat niemand anders dat doet.', 18);
-  // schok gegeven of geen schok
-  if(/geen schok/.test(m)) return go('resumed','Volg de AED en ga direct verder met reanimeren.', 3, !/geadviseerd|aanbevolen/.test(m));
-  if(/(schok|shock).{0,20}(gegeven|toegediend|gedaan|geweest)|(gegeven|gedaan).{0,10}(schok|shock)|geschokt/.test(m))
-    return go('resumed','Goed. Ga direct weer verder met reanimeren, zoals de AED zegt.', 3);
-  // AED zegt door te gaan / weer verder
-  if(/(aed|hij) zegt.{0,20}(door|verder|drukken|reanim)|we (gaan )?(weer )?(verder|door)|hervat|weer (aan het )?drukken|begin(nen)? weer|weer gestart/.test(m) && st!=='none' && st!=='fetching')
-    return go('resumed','Ja. Ga door met drukken, en beademen als u dat kunt. Ik blijf aan de lijn.');
-  // aansluiten / plakken
-  if(/aansluit|sluit(en)?.{0,20}\baan\b|aangesloten|plak|geplakt|elektrode|pads|plakker|zet (hem|de aed) aan|aangezet|staat aan|aan het aanzetten|bloot|ontbloot|shirt (open|uit)|knip/.test(m) && (aedWord || st!=='none'))
-    return go('connecting', ()=> hasHelp()
-      ? 'Goed. Ga zo veel mogelijk door met drukken terwijl de elektroden worden geplakt. Daarna volgt u de gesproken aanwijzingen.'
-      : 'Goed. Volg de gesproken aanwijzingen van de AED. Ik blijf aan de lijn.', 25);
-  // alleen, maar AED vlakbij
-  if(aedWord && !hasHelp() && /minuut|vlakbij|om de hoek|hangt (hier|in de gang|naast)|in de gang|op de gang/.test(m) && st==='none'){
-    S.aedState='fetching'; addMsg('me', first);
-    say('Haal die AED en kom meteen terug naar de persoon. Zet hem aan en volg de gesproken aanwijzingen.', startRec); return true;
-  }
-  if(!aedWord) return false;
-  // vragen over de AED (zolang die er nog niet is)
-  if(!S.aed && /waar blijft|komt (er )?(de |een )?(aed|a e d)|(aed|a e d).{0,10}(onderweg|komen)|hebben jullie|stuurt u|stuur je/.test(m)){
-    addMsg('me', first);
-    say(st==='fetching' ? 'Ik hoor u. Blijf nu drukken. Zodra iemand terugkomt, vertel me dat; dan help ik u met de AED.'
-      : S.noAed ? 'Er is op dit moment geen AED in de buurt beschikbaar. De ambulance neemt er een mee. {door}'
-      : 'Ik heb burgerhulpverleners met een AED gealarmeerd. Is er in het gebouw een AED, laat die dan halen als er iemand is die dat kan. {door}', startRec);
-    return true;
-  }
-  // wordt gehaald
-  if(/haal|gehaald|ophalen|rent|gaat .{0,12}(halen|pakken)|pakt|onderweg/.test(m) && !has(AEDW+'.{0,15}(is|zijn) (er|terug|hier)|terug met',m))
-    return go('fetching', ()=> (S.away||0)>0 && !hasHelp()
-        ? 'Duidelijk, de AED wordt gehaald en u bent nu alleen bij de persoon. Blijf reanimeren. Zeg het zodra uw collega terug is.'
-        : hasHelp() ? 'Goed, de AED is onderweg en er is nog iemand bij u. Laat die zo nodig helpen of straks het drukken overnemen.'
-        : (S.cprQ='who', later(()=>{ if(S.cprQ==='who') S.cprQ=null; }, 20000), 'Goed dat de AED wordt gehaald. Is er nu nog iemand anders bij u?'), 0, true);
-  // is er (dat zegt de AED nooit zelf)
-  if(has(AEDW+'.{0,15}((is|zijn) (er|hier|binnen|aangekomen|gearriveerd|gebracht|terug)|ligt (hier|er)|staat hier|hangt hier|is gekomen)|terug met (de |een )?'+AEDW+'|(hebben|we hebben) (een|de) '+AEDW,m) || ((st==='fetching'||st==='asked') && /^(ja[, ]*)?(hij|die|de aed) is (er|hier)$/.test(m.trim())))
-    return go('present', ()=> hasHelp()
-        ? 'Laat de AED aanzetten en de elektroden aanbrengen, terwijl u zo veel mogelijk doorgaat met drukken. Volg de gesproken aanwijzingen.'
-        : 'Zet de AED aan. Maak de borstkas vrij en plak de elektroden volgens de afbeeldingen. Volg de gesproken instructies.', 15, true);
-  return false;
-}
-function startCpr(acks){
-  S.phase='cpr-intro'; S.cprBefore=S.slots.cpr;
-  startMetronome();
-  let how;
-  if(S.slots.cpr && S.knows!==false) how='Ga door met reanimeren. Geef aan als u hulp nodig heeft.';
-  else if(S.knows) how='Goed. Begint u maar, ik blijf aan de lijn.';
-  else how='Ik help u. Plaats de hiel van uw hand midden op de borst en uw andere hand daar bovenop. Houd uw armen gestrekt. Druk vijf tot zes centimeter diep, honderd tot honderdtwintig keer per minuut. Laat de borst na elke druk helemaal terugveren. Begin nu met dertig borstcompressies. Geef daarna twee beademingen: kantel het hoofd achterover, til de kin op en knijp de neus dicht. Sluit uw mond om de mond van de persoon en blaas rustig één seconde, totdat de borst omhoogkomt. Laat de borst dalen en geef de tweede beademing. Ga direct verder met dertig borstcompressies. Blijf dertig compressies en twee beademingen afwisselen. Houd de onderbreking zo kort mogelijk, bij voorkeur maximaal vijf seconden. Lukt beademen niet of wilt u niet beademen, blijf dan zonder onderbreking borstcompressies geven. Volg de AED zodra die er is. Ik blijf aan de lijn.';
-  const send=dispatch();
-  if(SC.drenkeling && S.knows===false) how='Ik help u. Geef eerst vijf beademingen: kantel het hoofd achterover, til de kin op en knijp de neus dicht. Sluit uw mond om de mond van de persoon. Blaas telkens rustig één seconde zodat de borst omhoogkomt en laat die weer dalen. Geef daarna dertig borstcompressies midden op de borst, vijf tot zes centimeter diep en honderd tot honderdtwintig keer per minuut. Laat de borst terugveren. Wissel vervolgens dertig compressies en twee beademingen af. Als beademen niet lukt, geef borstcompressies en zeg het, dan help ik u verder. Volg de AED zodra die er is.';
- const spk = S.speaker ? [] : ['Zet uw telefoon op de luidspreker en leg hem naast u neer.'];
-  const two = hasHelp() ? ['Er is nog iemand bij u: wissel ongeveer elke twee minuten van wie er drukt, liefst tijdens de analyse van de AED.'] : (S.away>0 ? ['U bent nu alleen bij de persoon. Zeg het zodra uw collega terug is.'] : []);
-  const askAed = !S.aed && S.aedState!=='fetching';
-  const tail = askAed ? 'Is er een AED ter plaatse, of wordt die gehaald?' : 'Ik blijf aan de lijn.';
-  if(askAed) S.cprQ='aedq';
-  let parts=[...acks, send, ...spk, how, ...two, tail];
-  say(parts.filter(Boolean).join(' '), ()=>{
-    S.phase='cpr'; S.cprStart=now();
-    later(()=>{ if(S.cprQ==='aedq') S.cprQ=null; }, 20000);
-    COACH.forEach(([sec,f])=>later(function c(){ if(S.phase!=='cpr' || S.aed || S.cprQ || quiet()) return; if(S.speaking||talking()){ later(c,2500); return; } const t=(sec===30 && S.knows)?null:f(); if(t && (!SC.kort || /wissel/i.test(t))) say(t, startRec); }, sec*1000));
-    later(()=>finish(false), CPR_MAX*1000);
-    later(ambulanceArrives, Math.max(5, arriveSec() - SIREN - elapsed())*1000);
-    if(!SC.kort){
-      askDuring(20, 'access', SC.buiten?'Ziet u een herkenningspunt, zoals een brug, pad, bord of ingang? Blijf bij de persoon.':'Waar in het gebouw ligt de persoon en welke ingang kunnen de hulpverleners gebruiken?', ()=>!S.accessGiven);
-      askDuring(45, 'reception', SC.buiten?'Kan een andere helper de hulpverleners bij een pad of ingang opvangen?':'Kan iemand de ambulance bij de ingang opvangen?', ()=>hasHelp() && !S.receptionGiven);
-      askDuring(VRAAG_WAT_NA_SECONDEN, 'what', 'Weet u wat er gebeurd is?', ()=>!S.what);
-    }
-    if(S.askAge) askDuring(150, 'age', 'Hoe oud is {hij} ongeveer?');
-    startRec();
-  });
-}
-function askDuring(sec, key, text, cond){
-  later(function tryAsk(){
-    if(S.phase!=='cpr' || S.handover || (cond && !cond())) return;
-    if(S.speaking || S.cprQ || quiet() || talking()){ later(tryAsk, 3000); return; }
-    S.cprQ=key; say(text, startRec);
-    later(()=>{ if(S.cprQ===key) S.cprQ=null; }, 20000); // geen antwoord: vraag laten vallen
-  }, sec*1000);
-}
-function handleDialogue(first,m){
- if(quiet()) return false;
- const speak=(text,key)=>{addMsg('me',first); S.cprQ=key||null; say(text,startRec);return true;};
- if(/ambulance is (er|hier|binnen|aangekomen)|hulpverleners zijn er/.test(m) && !/neem|over/.test(m))
-  return speak('Ga door totdat de hulpverleners het overnemen.');
- if(/(ambulance|ambulanceteam|hulpverleners).{0,30}(nemen|neemt|overgenomen)|ze nemen het (nu )?over/.test(m)){
-  S.handover=true; addMsg('me',first); say('Geef kort door wat er is gebeurd, wanneer u begon en wat de AED heeft aangegeven. Bedankt voor uw inzet.',()=>finish(true));return true;
- }
- if(SC.drenkeling && /kan (niet|geen) beadem|niet beademen/.test(m)) {return speak('Beademingen zijn bij verdrinking extra belangrijk. Wat lukt er niet? Als beademen niet lukt, blijf borstcompressies geven terwijl ik u help.','drowningBreaths');}
- if(S.cprQ==='drowningBreaths') return speak('Kantel het hoofd achterover en til de kin op. Knijp de neus dicht, sluit uw mond om de mond en blaas rustig totdat de borst omhoogkomt. Lukt dat niet na twee pogingen, ga direct verder met borstcompressies.');
- if(/komt er hulp|komt er wel hulp|is er hulp onderweg|hoelang|hoe lang.*(nog|duurt)|waar blijft de ambulance/.test(m))
-  return speak('Twee ambulances zijn met spoed onderweg en burgerhulpverlening is geactiveerd. Een exacte aankomsttijd kan ik niet geven. Ik blijf aan de lijn.',S.cprQ);
- if(/(haal|haalt|halen|weggestuurd|gestuurd).{0,50}(aed|a e d)|(aed|a e d).{0,25}(halen|onderweg)/.test(m) && !/geen|niemand|kan niet|niet halen|waar blijft|komt.*aed/.test(m)){
-  S.aedState='fetching'; S.aedAbsent=false; updateHelpers(m);
-  return speak('Prima, goed dat u dat heeft geregeld. Ga ondertussen door met reanimeren. Laat weten zodra de AED er is.');
- }
- if(!S.aed && /geen (aed|a e d)|aed.{0,15}niet (hier|aanwezig|beschikbaar|bereikbaar)/.test(m)){
-  S.aedAbsent=true;return speak('Is het mogelijk om iemand voor een AED te sturen?','sendAed');
- }
- if(S.cprQ==='sendAed'){
-  if(/\bja\b|collega|kan gaan/.test(m)){S.aedState='fetching';return speak('Goed. Laat die persoon de AED halen en terugbrengen. Ga ondertussen door met reanimeren.');}
-  if(/\bnee\b|niemand|alleen|niet mogelijk/.test(m)) return speak('Bent u alleen bij de persoon?','aloneAed');
-  return speak('Kan iemand anders een AED halen?','sendAed');
- }
- if(S.cprQ==='aloneAed'){
-  if(/\bja\b|alleen|niemand/.test(m)){S.helpers=0;return speak('Is er een AED die u binnen één minuut beschikbaar kunt hebben?','nearAed');}
-  if(/\bnee\b|collega|iemand/.test(m)){S.helpers=Math.max(1,S.helpers||0);return speak('Kan die persoon bij de receptie of BHV navragen waar een AED is?','sendAed');}
-  return speak('Bent u alleen, of is er iemand die kan helpen?','aloneAed');
- }
- if(S.cprQ==='nearAed'){
-  if(/\bja\b|binnen.{0,10}minuut|vlakbij/.test(m) && !/niet|geen|\bnee\b/.test(m)){S.aedState='fetching';return speak('Haal de AED en kom meteen terug. Zet hem aan en volg de aanwijzingen.');}
-  return speak('Ga door met reanimeren. De ambulances zijn onderweg en burgerhulpverlening is geactiveerd.');
- }
- const question=/\?|^(hoe|waar|wat|wanneer|kan|mag|moet|komt|bent)\b/.test(m);
- if(question){const hit=CPR_REPLIES.find(([re,,kind])=>kind!=='handover' && kind!=='stop' && re.test(m));
-  if(hit && !/aed|a e d|analyse|schok/.test(m)) return speak(typeof hit[1]==='function'?hit[1]():hit[1],S.cprQ);
- }
- if(S.cprQ==='aedq' && /\bnee\b|weet (ik )?niet/.test(m)) return speak('Is het mogelijk om iemand voor een AED te sturen?','sendAed');
- if(S.cprQ==='aedq' && /\bja\b/.test(m)) return speak('Is de AED al bij de persoon, of moet die nog gehaald worden?','aedq');
- if(S.cprQ==='access') {S.accessGiven=true;return speak('Dank u, ik geef deze locatie door aan de hulpverleners.');}
- if(S.cprQ==='reception'){S.receptionGiven=/\bja\b|gestuurd|staat/.test(m);return speak(S.receptionGiven?'Goed geregeld. Laat die persoon de hulpverleners de weg wijzen.':'Duidelijk. Ga door met reanimeren.');}
- return false;
-}
-function handleCpr(first, m){
-  if(handleDialogue(first,m)) return;
-  const helpersChanged=updateHelpers(m);
-  const pendingAed=S.cprQ==='aedq';
-  if(aedHandler(m, first)){ if(pendingAed && S.cprQ==='aedq') S.cprQ=null; return; }
-  if(S.cprQ){
-    const key=S.cprQ; S.cprQ=null; addMsg('me', first);
-    if(key==='aedq'){
-      if(/\bnee\b|geen|weet (ik )?niet|niet bekend/.test(m))
-        return say(hasHelp() ? 'Ik heb burgerhulpverleners met een AED gealarmeerd. Laat iemand kijken of er in het gebouw een AED hangt en die halen.' : 'Blijf bij de persoon en ga door met reanimeren. Ik heb burgerhulpverleners met een AED gealarmeerd.', startRec);
-      return say('Goed. {door}', startRec);
-    }
-    if(key==='who'){
-      if(!helpersChanged){ if(/\bnee\b|niemand|alleen/.test(m)) { S.helpers=0; } else if(/\bja\b|iemand|collega/.test(m)) { S.helpers=Math.max(1,S.helpers||0); } }
-      return say(helperReply(), startRec);
-    }
-    if(key==='name'){ S.nameGiven=true; return say('Dank u.', startRec); }
-    if(key==='what'){ S.what=true; return say('Dank u, dat geef ik door aan de ambulance.', startRec); }
-    if(key==='age'){ return say('Dank u. De hulp is onderweg.', startRec); }
-  }
-  if(quiet()) return; // ritmecheck of plakken: niet door de AED heen praten
-  const isQuestion=/^\s*(wat|wanneer|hoe|waar|waarom|wie|moet|mag|kan|kunt|komt|komen|is|zijn|gaat|heeft|hebben|zal|zullen)\b/.test(first.toLowerCase()) || /\?\s*$/.test(first);
-  let hit=CPR_REPLIES.find(([re])=>re.test(m));
-  if(!hit){
-    if(!isQuestion) return;
-    hit=[null,'Dat weet ik niet precies. De hulp is onderweg en ik blijf aan de lijn. {door}'];
-  }
-  // na de AED: niet reageren op wat de AED zelf zegt, alleen op de student
-  if(S.aed && !isQuestion && hit[0] && !['stop','handover','aedok'].includes(hit[2])) return;
-  addMsg('me', first);
-  if(typeof hit[1]==='function') hit=[hit[0], hit[1](), hit[2]];
-  if(hit[2]==='stop'){ S.stoppedEarly=true; return finish(false); }
-  if(hit[2]==='handover'){ S.handover=true; S.phase='ending'; stopRec(); return say(hit[1], ()=>{ S.phase='cpr'; finish(true); }); }
-  say(hit[1], startRec);
-}
-setInterval(()=>{
-  if(!S.t0 || S.phase==='done' || S.phase==='idle') return;
-  if(S.phase!=='connecting') $('callStatus').textContent=fmt(elapsed());
-  if(S.phase==='cpr' && S.cprStart) $('cprTime').textContent=fmt((now()-S.cprStart)/1000);
-  // wachten tot het hardop tellen klaar is, daarna pas de openingsvraag
-  if(S.phase==='opening' && !S.speaking){
-    const quiet=now()-(S.lastSpeech||S.openStart);
-    if(S.heardNumbers){ if((S.sawTen && quiet>500) || quiet>1500){ S.counted=true; S.phase='questions'; S.busy=true; ask('opening'); } }
-    else if(now()-S.openStart>1200 && quiet>800){ S.phase='questions'; S.busy=true; ask('opening'); }
-  }
-}, 250);
-
-/* ---------------- einde ---------------- */
-function finish(aedDone){
-  if(S.phase==='done') return;
-  const wasCpr = S.phase==='cpr' || S.phase==='cpr-intro';
-  S.cprDur = S.cprStart ? (now()-S.cprStart)/1000 : 0;
-  S.phase='done'; stopRec(); stopMetronome(); S.timers.forEach(clearTimeout);
-  if(synth) synth.cancel();
-  if(S.wake){ try{ S.wake.release(); }catch(e){} }
-  setInd('','Oefening klaar'); $('callStatus').textContent='Gesprek beëindigd';
-  setTimeout(()=>showResult(aedDone, wasCpr), 1200);
-}
-function showResult(aedDone, reachedCpr){
-  setVolume(1);
-  const rows=[], cls=(ok,mid)=>ok?'good':(mid?'mid':'bad');
-  rows.push(['Om de ambulance gevraagd', S.service==='goed'?'Ja':S.service==='omweg'?'Via een andere route':'Niet duidelijk', cls(S.service==='goed'||S.service==='omweg'),
-    'De 112-centralist vraagt eerst: politie, brandweer of ambulance? Zeg meteen "ambulance".']);
-  rows.push(['Ademhaling hardop gecontroleerd', S.counted?'Ja, geteld':'Niet gehoord', cls(S.counted),
-    'Tel hardop tot 10 terwijl je naar de borst kijkt. De meldkamer wacht daarop.']);
-  const volN=['address','unresp','noBreath'].filter(k=>S.vol[k]).length;
-  const missing=[]; if(!S.vol.address) missing.push('het adres'); if(!S.vol.unresp) missing.push('dat hij niet reageert'); if(!S.vol.noBreath) missing.push('dat hij niet normaal ademt');
-  rows.push(['Zelf gemeld aan de meldkamer ambulance', volN+' van 3', cls(volN===3, volN>=1),
-    missing.length ? 'Nog niet genoemd: '+missing.join(', ')+'.' : 'Adres, geen reactie en geen normale ademhaling: alles in één keer.']);
-  if(S.addrUnmatched) rows.push(['Adres verstaan', 'Niet zeker', 'mid', 'De app kon het adres niet goed verstaan. Controleer of je het juiste adres noemde: '+SC.adres+'.']);
-  rows.push(['Adres genoemd na', S.slots.address!==null?fmt(S.slots.address):'Niet genoemd', cls(S.slots.address!==null&&S.slots.address<=30, S.slots.address!==null&&S.slots.address<=50),
-    'Gerekend vanaf het bellen.']);
-  rows.push(['Reanimatie gestart vóór de instructie', S.cprBefore?'Ja':'Nee', cls(S.cprBefore),
-    'Je hoeft niet te wachten op de meldkamer: begin zodra je weet dat hij niet normaal ademt.']);
-  rows.push(['Extra vragen van de meldkamer', String(S.asked.size), cls(S.asked.size===0, S.asked.size<=1),
-    'De centralist vraagt alleen ontbrekende informatie. Aanvullende vragen houden de inzet van hulp niet tegen.']);
-  if(S.wrongBreath||S.wrongUnresp) rows.push(['Juist ingeschat', 'Nee', 'bad',
-    S.wrongBreath?'Happen of snurken is geen normale ademhaling.':'Hij reageerde niet op aanspreken en schudden.']);
-  rows.push(['Luidspreker aangezet', S.tSpeaker!==null?'Na '+fmt(S.tSpeaker):'Niet', cls(S.tSpeaker!==null&&S.tSpeaker<=8, S.tSpeaker!==null),
-    'Zet de luidspreker aan zodra je belt, dan heb je je handen vrij voor de reanimatie.']);
-  if(S.confirmPlan==='wrong' && S.confirmAsked) rows.push(['Verkeerd adres verbeterd', S.confirmOk?'Ja':'Nee', cls(S.confirmOk),
-    'De meldkamer las het adres bewust verkeerd voor. Luister goed en verbeter het meteen.']);
-  rows.push(['Hulp onderweg na', S.tHelp!==null?fmt(S.tHelp):'–', cls(S.tHelp!==null&&S.tHelp<=60, S.tHelp!==null&&S.tHelp<=90), 'Vanaf het bellen tot twee ambulances en burgerhulpverlening zijn gealarmeerd.']);
-  rows.push(['AED gemeld aan de meldkamer', S.aedEarly?'Al bij de melding':S.aed?'Na '+fmt(S.tAed)+' reanimeren':'Nee', cls(S.aed),
-    'Zeg het tegen de meldkamer als de AED er is. De meldkamer wordt dan stil, zodat je de AED goed hoort.']);
-  rows.push(['Reanimatie volgehouden', reachedCpr?fmt(S.cprDur):'–', cls(S.handover||S.cprDur>=120, S.cprDur>=60),
-    'Bespreek met de instructeur de feedback van de oefenpop over diepte en tempo.']);
-  const box=$('resultBox'); box.innerHTML='';
-  rows.forEach(([k,v,c,t])=>{ const d=document.createElement('div'); d.className='metric';
-    d.innerHTML='<span></span><span class="v '+c+'"></span><span class="t"></span>';
-    d.children[0].textContent=k; d.children[1].textContent=v; d.children[2].textContent=t; box.appendChild(d); });
-  const tr=$('transcript'); tr.innerHTML='';
-  transcript.forEach(([k,t])=>{ const li=document.createElement('li'); li.className='tr-'+k;
-    li.textContent=(k==='disp'?'Meldkamer: ':k==='note'?'Tip: ':k==='count'?'Jij (tellen): ':'Jij: ')+t; tr.appendChild(li); });
-  show('result');
-}
-
-/* ---------------- start ---------------- */
-async function askMic(){
-  if(!SR) return false;
-  try{ if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
-      const st=await navigator.mediaDevices.getUserMedia({audio:true}); st.getTracks().forEach(t=>t.stop()); }
-    return true; }catch(e){ return false; }
-}
-let dialed='';
-const LET={2:'ABC',3:'DEF',4:'GHI',5:'JKL',6:'MNO',7:'PQRS',8:'TUV',9:'WXYZ',0:'+'};
-const DTMF={1:[697,1209],2:[697,1336],3:[697,1477],4:[770,1209],5:[770,1336],6:[770,1477],7:[852,1209],8:[852,1336],9:[852,1477],'*':[941,1209],0:[941,1336],'#':[941,1477]};
-let keepAlive=null;
-function toneWav(freq, onSec, totalSec, amp){
-  const rate=16000, n=Math.floor(rate*totalSec), on=Math.floor(rate*onSec);
-  const b=new ArrayBuffer(44+n*2), v=new DataView(b), w=(o,t)=>{ for(let i=0;i<t.length;i++) v.setUint8(o+i,t.charCodeAt(i)); };
-  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVEfmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
-  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
-  for(let i=0;i<n;i++){ const fade=Math.min(1,i/200,(on-i)/200); const x=i<on?Math.sin(2*Math.PI*freq*i/rate)*amp*Math.max(0,fade):0; v.setInt16(44+i*2, x*32767, true); }
-  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
-}
-let RING=null;
-function ring(){
-  if(!RING) RING={ soft:new Audio(toneWav(425,1.0,1.2,0.12)), loud:new Audio(toneWav(425,1.0,1.2,0.7)) };
-  const a = S.speaker ? RING.loud : RING.soft;
-  try{ a.currentTime=0; a.play().catch(()=>{}); }catch(e){}
-}
-function silentWav(){ // 0,5 s stilte als wav, om iOS in 'afspelen'-modus te zetten
-  const n=4000, b=new ArrayBuffer(44+n*2), v=new DataView(b), w=(o,t)=>{ for(let i=0;i<t.length;i++) v.setUint8(o+i,t.charCodeAt(i)); };
-  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVEfmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
-  v.setUint32(24,8000,true); v.setUint32(28,16000,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
-  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
-}
-function audio(){
-  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
-  try{ if(!keepAlive){ keepAlive=new Audio(silentWav()); keepAlive.loop=true; keepAlive.volume=0.01; } keepAlive.play().catch(()=>{}); }catch(e){}
-  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(e){}
-}
-function tone(k){ audio(); setVolume(1); const f=DTMF[k]; if(!f) return; beep(f[0],0.12,0.06); beep(f[1],0.12,0.06); }
-function renderDial(){ $('dialNum').textContent=dialed; $('delBtn').classList.toggle('invisible', !dialed); $('dialHint').textContent=''; }
-['1','2','3','4','5','6','7','8','9','*','0','#'].forEach(k=>{
-  const b=document.createElement('button'); b.className='key'; b.setAttribute('aria-label',k);
-  b.innerHTML='<span class="d"></span><span class="l"></span>';
-  b.children[0].textContent=k; b.children[1].textContent=LET[k]||'';
-  b.onclick=()=>{ if(dialed.length<15){ dialed+=k; tone(k); renderDial(); } };
-  $('keys').appendChild(b);
-});
-$('delBtn').onclick=()=>{ dialed=dialed.slice(0,-1); renderDial(); };
-function show(id){ ['intro','dialer','call','result'].forEach(s=>$(s).classList.toggle('hidden', s!==id));
-  document.body.dataset.screen=id; window.scrollTo(0,0); }
-// Toestemming voor microfoon en spraakherkenning al vragen bij het kiezen van een scenario,
-// zodat er tijdens het gesprek geen melding meer in beeld komt.
-let micWarm=false;
-async function warmupMic(){
-  if(micWarm || !SR) return; micWarm=true;
-  try{ if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){ const st=await navigator.mediaDevices.getUserMedia({audio:true}); st.getTracks().forEach(t=>t.stop()); } }catch(e){}
-  try{ const r=new SR(); r.lang='nl-NL'; r.onerror=()=>{}; r.onend=()=>{}; r.start(); setTimeout(()=>{ try{ r.abort(); }catch(e){} }, 600); }catch(e){}
-}
-function renderList(){
-  const L=$('scList'); L.innerHTML='';
-  SCENARIOS.forEach((sc,i)=>{
-    const b=document.createElement('button'); b.className='row'; b.disabled=!sc.naam;
-    b.innerHTML='<span class="num"></span><span class="txt"><b></b><span></span></span><span class="chev" aria-hidden="true">›</span>';
-    b.querySelector('.num').textContent=i+1;
-    b.querySelector('b').textContent=sc.naam||'Nog in te vullen';
-    b.querySelector('.txt span').textContent=sc.adres ? sc.adres+'. Ambulance na '+(sc.ambulanceNa||AMBULANCE_NA_MINUTEN+':00') : 'Beschikbaar voor een nieuw adres';
-    b.onclick=()=>{ SC=sc;
-      if(sc.drenkeling){
-        const choice=$('drowningLocation').value;
-        const labels={strand:'het strand van Scheveningen',zwembad:'een zwembad in Den Haag',laakkade:'de Laakkade in Den Haag'};
-        SC={...sc,gpsLabel:labels[choice],adres:labels[choice],waterStart:$('drowningStatus').value};
-      }
-      dialed=''; renderDial(); warmupMic(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
-    L.appendChild(b);
-  });
-}
-renderList();
-$('backIntro').onclick=()=>show('intro');
-$('dialBtn').onclick=async ()=>{
-  if(dialed!=='112'){ $('dialHint').textContent= dialed ? 'In deze oefening bel je 112.' : 'Toets eerst 112 in.'; return; }
-  audio();
-  reset(); transcript=[];
-  if(SC.drenkeling){S.waterSafe=SC.waterStart==='uit';}
-  ring(); // meteen overgaan, nog binnen de tik (nodig op iPhone)
-  if(synth){ const u=new SpeechSynthesisUtterance(' '); u.volume=0; synth.speak(u); } // ontgrendelt spraak op iOS
-  $('callTitle').textContent='112'; $('callStatus').textContent='bellen…';
-  $('capDisp').textContent=''; $('capMe').textContent='';
-  $('cprPill').classList.add('hidden'); $('cprTime').textContent='0:00';
-  show('call'); setInd('talk','Verbinden…');
-  try{ if(navigator.wakeLock) navigator.wakeLock.request('screen').then(w=>S.wake=w).catch(()=>{}); }catch(e){}
-  S.t0=now(); S.tDial=now(); S.phase='connecting'; setSpeaker(false); S.role='112';
-  // variatie per oefening
-  S.noAed = Math.random()<0.25;
-  S.confirmPlan = Math.random()<0.5 ? (Math.random()<0.5 ? 'wrong' : 'right') : null;
-  S.askAge = Math.random()<0.5;
-  if(SC.kort){ S.confirmPlan=null; S.askAge=false; }
-  setInd('talk','Gaat over…');
-  // één keer overgaan, dan neemt de centralist op
-  later(()=>{
-    if(S.phase!=='connecting') return;
-    S.t0=now(); S.phase='opening'; S.openStart=now(); $('callStatus').textContent='0:00';
-    if(!SR) micFailed('none'); else startRec();
-  },2600);
+const TEKST={
+  zin001:'Zet het volume hoog. De meldkamer luistert als het bolletje groen is.',
+  zin002:'Deze browser ondersteunt geen spraakherkenning. Gebruik Safari op de iPhone of Chrome op Android.',
+  zin003:'Deze app of browser ondersteunt geen spraakherkenning. Open de link in Safari (iPhone) of Chrome (Android), niet in de Claude-app.',
+  zin004:'Geen toegang tot de microfoon. Open de link in Safari of Chrome en tik op Toestaan als om de microfoon wordt gevraagd.',
+  zin005:'Spraakherkenning staat uit. Zet op de iPhone Siri en Dicteren aan via Instellingen, of gebruik Chrome.',
+  zin006:'Spraakherkenning heeft een internetverbinding nodig.',
+  zin007:'Er zijn twee ambulances met spoed naar u onderweg. De burgerhulpverlening is geactiveerd. Er kunnen burgerhulpverleners bij u aankomen, mogelijk met een AED. Ik blijf aan de lijn.',
+  zin008:'. Klopt dat? Ik kan de GPS-locatie doorgeven aan de hulpverleners.',
+  zin009:'Ziet u een herkenningspunt, zoals een brug, pad, bord of ingang? Blijf bij de persoon.',
+  zin010:'Weet u wat u moet doen bij de reanimatie van een drenkeling?',
+  zin011:'Een moment, ik verbind u door met de meldkamer ',
+  zin012:'Dan klopt de locatie op mijn scherm niet. Waar bent u wel?',
+  zin013:' door aan de hulpverleners. U hoeft geen straat of huisnummer te zoeken.',
+  zin014:'Ga niet zelf het water in als dat onveilig is. Ik geef door dat redding uit het water nodig is. De hulpdiensten worden voor een waterredding ingezet. Blijf op een veilige plek. Vertel het zodra de persoon veilig uit het water is.',
+  zin015:'Houd de luchtweg vrij en blijf de ademhaling controleren.',
+  zin016:'Blijf bij de persoon en houd de luchtweg vrij. Ik blijf aan de lijn. Vertel het meteen als de toestand verandert.',
+  zin017:'Prima, goed dat u al iemand voor de AED heeft gestuurd.',
+  zin018:'Ik noteer uw opgegeven locatie en geef die door aan de hulpverleners.',
+  zin019:'Ik heb nog het volledige adres nodig, met huisnummer en plaats.',
+  zin020:'Ik hoor de sirene, de ambulance is er bijna. Laat iemand hen opvangen en de weg wijzen. Ga door tot het ambulanceteam het overneemt.',
+  zin021:'Ik hoor de sirene, de ambulance is er bijna. Blijf bij de persoon en ga door tot het ambulanceteam het overneemt.',
+  zin022:'De ambulance is bij u. Ga door totdat de hulpverleners het overnemen. Geef daarna kort door wat er is gebeurd en wat de AED heeft aangegeven.',
+  zin023:'Duidelijk, er is nog iemand bij u. Laat die persoon zo nodig helpen of straks het drukken overnemen. Wissel ongeveer elke twee minuten, liefst tijdens de analyse van de AED.',
+  zin024:'Duidelijk, u bent nu alleen bij de persoon. Blijf reanimeren en houd de telefoon op de luidspreker. Zeg het zodra uw collega terug is.',
+  zin025:'Duidelijk, u bent alleen. Ik blijf aan de lijn. {door}',
+  zin026:'Blijf stevig en snel drukken, ongeveer twee keer per seconde. Ik blijf aan de lijn.',
+  zin027:'Gaat het nog? We doen dit stap voor stap. De hulp is onderweg.',
+  zin028:'Het is bijna twee minuten. Wissel straks van wie er drukt, snel en zonder pauze.',
+  zin029:'Houd vol, de hulp komt eraan. Ik blijf aan de lijn.',
+  zin030:'Weer twee minuten. Wissel als dat kan, zonder pauze.',
+  zin031:'(aed|a e d|a\\.e\\.d|ae d|a ee d|defibrillator|hartstarter)',
+  zin032:'Fijn. Vertel de hulpverleners waar de persoon ligt, en geef kort door wanneer u hem aantrof, wanneer de reanimatie begon en wat de AED heeft aangegeven. Laat hen de zorg overnemen. Ik hang nu op.',
+  zin033:'De ambulances zijn met spoed onderweg. Een exacte tijd kan ik niet geven. Ik blijf aan de lijn. {door}',
+  zin034:'De ambulancezorg en burgerhulpverlening zijn gealarmeerd. Ik geef uw vraag over politie door.',
+  zin035:'De ambulancezorg en burgerhulpverlening zijn gealarmeerd. Ik geef uw vraag over brandweer door.',
+  zin036:'Dat is goed. Blijf zonder onderbreking borstcompressies geven. Ik blijf aan de lijn.',
+  zin037:'Kantel het hoofd iets verder achterover en til de kin op. Probeer het nog één keer en ga dan direct verder met drukken.',
+  zin038:'Kantel het hoofd achterover en til de kin op. Na dertig keer drukken geeft u twee rustige beademingen, tot u de borstkas ziet omhoogkomen. Ga dan direct verder met drukken.',
+  zin039:'Ga daarmee door: dertig keer drukken en twee keer beademen, met zo kort mogelijke pauzes. Lukt beademen niet, dan alleen drukken.',
+  zin040:'Dat geeft niet. Blijf stevig en snel drukken, ongeveer twee keer per seconde.',
+  zin041:'Blijf in een stevig ritme drukken, ongeveer twee keer per seconde. Laat de borstkas na elke keer helemaal terugveren.',
+  zin042:'Midden op de borstkas, handen op elkaar, armen gestrekt. Vijf tot zes centimeter diep, ongeveer twee keer per seconde.',
+  zin043:'Ik begrijp dat het spannend is. De persoon reageert niet en ademt niet normaal. Blijf op de borstkas drukken, ik begeleid u.',
+  zin044:'Nee, ga door tot de AED zegt dat u moet stoppen of tot de ambulance het overneemt.',
+  zin045:'Draai het hoofd even opzij en maak de mond schoon. Is {hij} duidelijk bij bewustzijn en ademt {hij} normaal? Zo niet, ga direct weer verder.',
+  zin046:'Goed. Laat iemand bij de ingang staan om de ambulance de weg te wijzen.',
+  zin047:'U blijft bij de persoon. Ik geef de ingang door aan de ambulance.',
+  zin048:'Ga door met reanimeren, dat is nu het belangrijkste. De ambulance kijkt daar straks naar.',
+  zin049:'De AED kan gewoon gebruikt worden. Plak de elektrode niet op het zichtbare apparaat, maar er iets naast, en volg de AED.',
+  zin050:'Ga gewoon door met reanimeren. Ik geef het door aan de ambulance.',
+  zin051:'Droog de plekken voor de elektroden snel af, zodat ze goed contact maken. Plak ze en volg de AED.',
+  zin052:'Scheer of trek het haar weg waar de elektroden komen, als er een scheermesje bij de AED zit. Anders stevig aandrukken.',
+  zin053:'Zorg dat de elektroden niet op metaal komen. Schuif het opzij en plak op de blote huid.',
+  zin054:'Dit oefenscenario is voor een volwassene. Voor kinderen en baby\'s gelden andere instructies; die oefent u apart.',
+  zin055:'Goed. Wissel snel en ga meteen door, zonder pauze.',
+  zin056:'Is er iemand bij u gekomen? Laat die het drukken dan overnemen, zonder pauze.',
+  zin057:'Laat de ander het drukken overnemen, snel en zonder pauze.',
+  zin058:'Ik hoor dat het zwaar is. Blijf doen wat u kunt. Zodra iemand bij u komt, laat die het drukken overnemen. Ik blijf aan de lijn.',
+  zin059:'De ambulances zijn onderweg. Ga door tot de hulpverleners het van u overnemen.',
+  zin060:'Vijf tot zes centimeter diep, ongeveer twee keer per seconde. Laat de borstkas steeds helemaal terugkomen.',
+  zin061:'Dat kan gebeuren. Ga gewoon door, dat is nu het belangrijkste.',
+  zin062:'Ik blijf aan de lijn. We doen dit stap voor stap.',
+  zin063:'Blijf bij {hem} en controleer de ademhaling en reactie voortdurend. Houd de luchtweg vrij. Laat de AED aan en de elektroden zitten. Vertel het meteen als het slechter gaat. Stopt het normale ademen, begin dan direct weer met reanimeren.',
+  zin064:'Wat doet {hij} precies? Opent {hij} de ogen, reageert {hij} duidelijk en ademt {hij} normaal? Bij twijfel gaat u door met reanimeren.',
+  zin065:'Zorg dat niemand de persoon aanraakt. Volg de AED voor de schok en ga daarna direct verder met reanimeren.',
+  zin066:'Raak de persoon nu niet aan, en zorg dat niemand anders dat doet.',
+  zin067:'Volg de AED en ga direct verder met reanimeren.',
+  zin068:'Goed. Ga direct weer verder met reanimeren, zoals de AED zegt.',
+  zin069:'Ja. Ga door met drukken, en beademen als u dat kunt. Ik blijf aan de lijn.',
+  zin070:'Goed. Ga zo veel mogelijk door met drukken terwijl de elektroden worden geplakt. Daarna volgt u de gesproken aanwijzingen.',
+  zin071:'Goed. Volg de gesproken aanwijzingen van de AED. Ik blijf aan de lijn.',
+  zin072:'Haal die AED en kom meteen terug naar de persoon. Zet hem aan en volg de gesproken aanwijzingen.',
+  zin073:'Ik hoor u. Blijf nu drukken. Zodra iemand terugkomt, vertel me dat; dan help ik u met de AED.',
+  zin074:'Er is op dit moment geen AED in de buurt beschikbaar. De ambulance neemt er een mee. {door}',
+  zin075:'Ik heb burgerhulpverleners met een AED gealarmeerd. Is er in het gebouw een AED, laat die dan halen als er iemand is die dat kan. {door}',
+  zin076:'Duidelijk, de AED wordt gehaald en u bent nu alleen bij de persoon. Blijf reanimeren. Zeg het zodra uw collega terug is.',
+  zin077:'Goed, de AED is onderweg en er is nog iemand bij u. Laat die zo nodig helpen of straks het drukken overnemen.',
+  zin078:'Goed dat de AED wordt gehaald. Is er nu nog iemand anders bij u?',
+  zin079:'.{0,15}((is|zijn) (er|hier|binnen|aangekomen|gearriveerd|gebracht|terug)|ligt (hier|er)|staat hier|hangt hier|is gekomen)|terug met (de |een )?',
+  zin080:'Laat de AED aanzetten en de elektroden aanbrengen, terwijl u zo veel mogelijk doorgaat met drukken. Volg de gesproken aanwijzingen.',
+  zin081:'Zet de AED aan. Maak de borstkas vrij en plak de elektroden volgens de afbeeldingen. Volg de gesproken instructies.',
+  zin082:'Ga door met reanimeren. Geef aan als u hulp nodig heeft.',
+  zin083:'Ik help u. Plaats de hiel van uw hand midden op de borst en uw andere hand daar bovenop. Houd uw armen gestrekt. Druk vijf tot zes centimeter diep, honderd tot honderdtwintig keer per minuut. Laat de borst na elke druk helemaal terugveren. Begin nu met dertig borstcompressies. Geef daarna twee beademingen: kantel het hoofd achterover, til de kin op en knijp de neus dicht. Sluit uw mond om de mond van de persoon en blaas rustig één seconde, totdat de borst omhoogkomt. Laat de borst dalen en geef de tweede beademing. Ga direct verder met dertig borstcompressies. Blijf dertig compressies en twee beademingen afwisselen. Houd de onderbreking zo kort mogelijk, bij voorkeur maximaal vijf seconden. Lukt beademen niet of wilt u niet beademen, blijf dan zonder onderbreking borstcompressies geven. Volg de AED zodra die er is. Ik blijf aan de lijn.',
+  zin084:'Ik help u. Geef eerst vijf beademingen: kantel het hoofd achterover, til de kin op en knijp de neus dicht. Sluit uw mond om de mond van de persoon. Blaas telkens rustig één seconde zodat de borst omhoogkomt en laat die weer dalen. Geef daarna dertig borstcompressies midden op de borst, vijf tot zes centimeter diep en honderd tot honderdtwintig keer per minuut. Laat de borst terugveren. Wissel vervolgens dertig compressies en twee beademingen af. Als beademen niet lukt, geef borstcompressies en zeg het, dan help ik u verder. Volg de AED zodra die er is.',
+  zin085:'Zet uw telefoon op de luidspreker en leg hem naast u neer.',
+  zin086:'Er is nog iemand bij u: wissel ongeveer elke twee minuten van wie er drukt, liefst tijdens de analyse van de AED.',
+  zin087:'U bent nu alleen bij de persoon. Zeg het zodra uw collega terug is.',
+  zin088:'Is er een AED ter plaatse, of wordt die gehaald?',
+  zin089:'Waar in het gebouw ligt de persoon en welke ingang kunnen de hulpverleners gebruiken?',
+  zin090:'Kan een andere helper de hulpverleners bij een pad of ingang opvangen?',
+  zin091:'Kan iemand de ambulance bij de ingang opvangen?',
+  zin092:'Ga door totdat de hulpverleners het overnemen.',
+  zin093:'Geef kort door wat er is gebeurd, wanneer u begon en wat de AED heeft aangegeven. Bedankt voor uw inzet.',
+  zin094:'Beademingen zijn bij verdrinking extra belangrijk. Wat lukt er niet? Als beademen niet lukt, blijf borstcompressies geven terwijl ik u help.',
+  zin095:'Kantel het hoofd achterover en til de kin op. Knijp de neus dicht, sluit uw mond om de mond en blaas rustig totdat de borst omhoogkomt. Lukt dat niet na twee pogingen, ga direct verder met borstcompressies.',
+  zin096:'Twee ambulances zijn met spoed onderweg en burgerhulpverlening is geactiveerd. Een exacte aankomsttijd kan ik niet geven. Ik blijf aan de lijn.',
+  zin097:'Prima, goed dat u dat heeft geregeld. Ga ondertussen door met reanimeren. Laat weten zodra de AED er is.',
+  zin098:'Is het mogelijk om iemand voor een AED te sturen?',
+  zin099:'Goed. Laat die persoon de AED halen en terugbrengen. Ga ondertussen door met reanimeren.',
+  zin100:'Is er een AED die u binnen één minuut beschikbaar kunt hebben?',
+  zin101:'Kan die persoon bij de receptie of BHV navragen waar een AED is?',
+  zin102:'Bent u alleen, of is er iemand die kan helpen?',
+  zin103:'Haal de AED en kom meteen terug. Zet hem aan en volg de aanwijzingen.',
+  zin104:'Ga door met reanimeren. De ambulances zijn onderweg en burgerhulpverlening is geactiveerd.',
+  zin105:'Is de AED al bij de persoon, of moet die nog gehaald worden?',
+  zin106:'Dank u, ik geef deze locatie door aan de hulpverleners.',
+  zin107:'Goed geregeld. Laat die persoon de hulpverleners de weg wijzen.',
+  zin108:'Ik heb burgerhulpverleners met een AED gealarmeerd. Laat iemand kijken of er in het gebouw een AED hangt en die halen.',
+  zin109:'Blijf bij de persoon en ga door met reanimeren. Ik heb burgerhulpverleners met een AED gealarmeerd.',
+  zin110:'Dat weet ik niet precies. De hulp is onderweg en ik blijf aan de lijn. {door}',
+  zin111:'De 112-centralist vraagt eerst: politie, brandweer of ambulance? Zeg meteen "ambulance".',
+  zin112:'Tel hardop tot 10 terwijl je naar de borst kijkt. De meldkamer wacht daarop.',
+  zin113:'Adres, geen reactie en geen normale ademhaling: alles in één keer.',
+  zin114:'De app kon het adres niet goed verstaan. Controleer of je het juiste adres noemde: ',
+  zin115:'Je hoeft niet te wachten op de meldkamer: begin zodra je weet dat hij niet normaal ademt.',
+  zin116:'De centralist vraagt alleen ontbrekende informatie. Aanvullende vragen houden de inzet van hulp niet tegen.',
+  zin117:'Happen of snurken is geen normale ademhaling.',
+  zin118:'Hij reageerde niet op aanspreken en schudden.',
+  zin119:'Zet de luidspreker aan zodra je belt, dan heb je je handen vrij voor de reanimatie.',
+  zin120:'De meldkamer las het adres bewust verkeerd voor. Luister goed en verbeter het meteen.',
+  zin121:'Vanaf het bellen tot twee ambulances en burgerhulpverlening zijn gealarmeerd.',
+  zin122:'Zeg het tegen de meldkamer als de AED er is. De meldkamer wordt dan stil, zodat je de AED goed hoort.',
+  zin123:'Bespreek met de instructeur de feedback van de oefenpop over diepte en tempo.',
+  zin124:'één één twee. Heeft u politie, brandweer of ambulance nodig?',
+  zin125:'Meldkamer ambulance. Waar bent u precies? Is er een AED ter plaatse?',
+  zin126:'. Mis je een stem die je net hebt gedownload? Sluit Safari dan helemaal af en open de app opnieuw.',
+  zin127:'Geluid: hoor je een toon en een stem? Zo niet, zet het volume hoger en de stille modus uit. Microfoon: ',
+  zin128:'Je hoort nu een toon en een stem. Zeg daarna iets…',
+  zin129:'Er is niets gehoord. Probeer het nog eens en praat wat harder.'
 };
-$('spkBtn').onclick=()=>setSpeaker(!S.speaker);
-$('endBtn').onclick=()=>{ S.stoppedEarly=true; if(S.phase==='idle'||S.phase==='connecting'){ S.phase='done'; stopRec(); S.timers.forEach(clearTimeout); setVolume(1); show('dialer'); return; } finish(false); };
-$('againBtn').onclick=()=>show('intro');
-function hookVoice(selId, testId, key, role, sample){
-  $(selId).onchange=e=>{ const v=nlVoices().find(x=>vkey(x)===e.target.value); if(!v) return;
-    if(role==='112') voice112=v; else voice=v; try{ localStorage.setItem(key, vkey(v)); }catch(err){} };
-  $(testId).onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance(speakable(sample)); u.lang='nl-NL';
-    const rv=roleVoice(role); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; synth.speak(u); };
-}
-hookVoice('voiceSel112','voiceTest112','stem112','112','één één twee. Heeft u politie, brandweer of ambulance nodig?');
-hookVoice('voiceSelAmb','voiceTestAmb','stemAmb','amb','Meldkamer ambulance. Waar bent u precies? Is er een AED ter plaatse?');
-(function(){
-  const sel=$('aedSel');
-  AED_VARIANTEN.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; if(v===aedUitspraak) o.selected=true; sel.appendChild(o); });
-  sel.onchange=()=>{ aedUitspraak=sel.value; try{ localStorage.setItem('aedUitspraak2', aedUitspraak); }catch(e){} };
-  $('aedTest').onclick=()=>{ if(!synth) return; synth.cancel(); const u=new SpeechSynthesisUtterance(speakable('Is er een AED ter plaatse? Zet de AED aan.')); u.lang='nl-NL';
-    const rv=roleVoice('amb'); if(rv.v) u.voice=rv.v; u.pitch=rv.pitch; u.rate=1.08; synth.speak(u); };
-})();
-$('voiceReload').onclick=()=>{
-  const cnt=$('voiceCount'); const before=nlVoices().length;
-  cnt.textContent='Zoeken naar stemmen…';
-  // een stille zin laat de iPhone de stemmenlijst opnieuw inlezen
-  if(synth){ try{ synth.cancel(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; u.lang='nl-NL'; synth.speak(u); }catch(e){} }
-  let n=0;
-  const step=()=>{ pickVoice(); n++;
-    if(n<4){ setTimeout(step, 700); return; }
-    const after=nlVoices().length; window.voiceMsgUntil=Date.now()+20000;
-    cnt.textContent = after+' Nederlandse stem'+(after===1?'':'men')+' gevonden'
-      + (after>before ? ', er zijn nieuwe bijgekomen.' : '. Mis je een stem die je net hebt gedownload? Sluit Safari dan helemaal af en open de app opnieuw.');
-  };
-  setTimeout(step, 300);
-};
-$('testBtn').onclick=()=>{
-  const out=$('testOut'); audio(); setVolume(1);
-  beep(425,0.6,0.35);
-  if(synth){ const u=new SpeechSynthesisUtterance('Hoort u mij? Zeg iets.'); u.lang='nl-NL'; if(voice) u.voice=voice; synth.speak(u); }
-  if(!SR){ out.textContent='Geluid: hoor je een toon en een stem? Zo niet, zet het volume hoger en de stille modus uit. Microfoon: '+MIC_MSG.none; return; }
-  out.textContent='Je hoort nu een toon en een stem. Zeg daarna iets…';
-  setTimeout(()=>{
-    let r; try{ r=new SR(); }catch(e){ out.textContent=MIC_MSG.none; return; }
-    r.lang='nl-NL'; r.interimResults=false;
-    let got=false;
-    r.onresult=e=>{ got=true; out.textContent='Het werkt. Verstaan: "'+e.results[0][0].transcript+'"'; };
-    r.onerror=e=>{ got=true; out.textContent = e.error==='no-speech' ? 'Er is niets gehoord. Probeer het nog eens en praat wat harder.' : (MIC_MSG[e.error]||('Fout: '+e.error)); };
-    r.onend=()=>{ if(!got) out.textContent='Er is niets gehoord. Probeer het nog eens.'; };
-    try{ r.start(); out.textContent='Ik luister, zeg iets…'; }catch(e){ out.textContent='Fout bij starten: '+e.message; }
-  }, 2200);
-};
-show('intro');
-})();
-</script>
-</body>
-</html>
