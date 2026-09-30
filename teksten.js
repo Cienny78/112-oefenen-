@@ -16,6 +16,9 @@ const VRAGEN={
 };
 
 const TEKST={
+  locatieOpvragen:'Ik ga uw locatie opvragen, zodat ik kan zien waar u bent.',
+  locatieHerkenbaar:'U bent bij {locatie}. Ik geef die locatie door aan de hulpverleners. Vertel het als dat niet klopt.',
+  locatieHogeschool:'De Haagse Hogeschool, dat is {adres}. Ik stuur de hulp naar dat adres. Geef het aan als u op een andere locatie bent.',
   zin001:'Zet het volume hoog. De meldkamer luistert als het bolletje groen is.',
   zin002:'Deze browser ondersteunt geen spraakherkenning. Gebruik Safari op de iPhone of Chrome op Android.',
   zin003:'Deze app of browser ondersteunt geen spraakherkenning. Open de link in Safari (iPhone) of Chrome (Android), niet in de Claude-app.',

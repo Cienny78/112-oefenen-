@@ -203,7 +203,7 @@ function nextQ(){
  return null;
 }
 function ask(q,prefix){
- if(q==='gpsConfirm'){S.pendingQ=q;S.reprompts=0;S.asked.add(q);return say([prefix,'Ik zie uw locatie bij '+(SC.gpsLabel||'het Haagse Bos in Den Haag')+T.zin008].filter(Boolean).join(' '),listenQ);}
+ if(q==='gpsConfirm'){S.pendingQ=q;S.reprompts=0;S.asked.add(q);return say([prefix,T.locatieOpvragen,'Ik zie uw locatie bij '+(SC.gpsLabel||'het Haagse Bos in Den Haag')+T.zin008].filter(Boolean).join(' '),listenQ);}
  S.pendingQ=q; S.reprompts=0; if(q!=='opening') S.asked.add(q);
  if(q==='access' && SC.buiten){S.pendingQ=q;return say([prefix,T.zin009].filter(Boolean).join(' '),listenQ);}
  if(q==='know' && SC.drenkeling){return say([prefix,T.zin010].filter(Boolean).join(' '),listenQ);}
@@ -224,6 +224,12 @@ function armSilence(){
 
 function extract(m, isOpening){
   const got=[];
+  if(SC.gps && S.slots.address===null){
+   const locations=[[/laak\s*kade/,'de Laakkade in Den Haag'],[/hoek (van|v) holland/,'het strand van Hoek van Holland'],[/zwarte? pad/,'het Zwarte Pad in Scheveningen'],[/scheveningen/,'het strand van Scheveningen'],[/haag(s|sche|se)?\s*bos|haagse bos/,'het Haagse Bos in Den Haag']];
+   const found=locations.find(([re])=>re.test(m));
+   if(found){SC={...SC,gpsLabel:found[1],adres:found[1]};S.slots.address=elapsed();S.namedLocation=true;got.push('address');}
+  }
+
  if(SC.drenkeling && /uit het water|op de (oever|kant)|op het (strand|droge)|veilig op de kant/.test(m) && !/niet uit|nog niet/.test(m)) S.waterSafe=true;
   if(/reanim|bewusteloos|reageert|adem|onwel|ingestort|drenkeling|verdronken|uit het water|ligt.{0,15}(grond|vloer)|in elkaar/.test(m)) S.incident=true;
   if(S.slots.address===null && addressComplete(m)){ S.slots.address=elapsed(); got.push('address'); }
@@ -281,6 +287,7 @@ function onFinalNow(alts){
 }
 
 function addressComplete(m){
+ if(!SC.gps && /haagse\s+(hoge\s*school|school)|de\s+hogeschool/.test(m)) return true;
  if(SC.gps) return false; // Eerst de gesimuleerde GPS-positie bij de beller controleren.
  const number=(SC.adres.match(/\d+/)||[])[0];
  const place=SC.adres.split(',').slice(1).join(',').trim().toLowerCase();
@@ -309,6 +316,11 @@ function service(m){
  return ask('opening');
 }
 function advance(acks=[]){
+ if(S.slots.address!==null && SC.gps && S.namedLocation && !S.addressAnnounced){S.addressAnnounced=true;acks.push(T.locatieHerkenbaar.replace('{locatie}',SC.gpsLabel));}
+ if(S.slots.address!==null && !SC.gps && !S.addressAnnounced){
+  S.addressAnnounced=true;
+  acks.push(T.locatieHogeschool.replace('{adres}',SC.adres));
+ }
  const send=dispatch(); if(send) acks.push(send);
  const next=nextQ();
  if(next) return ask(next,acks.filter(Boolean).join(' '));
@@ -356,7 +368,7 @@ function respond(m,q){
   if(S.slots.cpr || /geen reactie|reageert niet/.test(m) && /niet normaal|geen adem|hap/.test(m)) return advance();
   return say(T.zin016,listenQ);
  }
- if(got.includes('address')) acks.push('Ik heb '+SC.adres+' genoteerd.');
+
  if(got.includes('cpr')) acks.push('Goed dat u bent begonnen.');
  if(got.includes('aedFetch')) acks.push(T.zin017);
  if(/verdieping|lokaal|ruimte|ingang|receptie/.test(m)) S.accessGiven=true;
@@ -773,7 +785,7 @@ function renderList(){
     b.onclick=()=>{ SC=sc;
       if(sc.drenkeling){
         const choice=$('drowningLocation').value;
-        const labels={strand:'het strand van Scheveningen',zwembad:'een zwembad in Den Haag',laakkade:'de Laakkade in Den Haag'};
+        const labels={strand:'het strand van Scheveningen',hoek:'het strand van Hoek van Holland',zwartepad:'het Zwarte Pad in Scheveningen',zwembad:'een zwembad in Den Haag',laakkade:'de Laakkade in Den Haag'};
         SC={...sc,gpsLabel:labels[choice],adres:labels[choice],waterStart:$('drowningStatus').value};
       }
       dialed=''; renderDial(); warmupMic(); $('dialLoc').textContent='📍 '+sc.naam.replace(/, (kort|lang)$/,'')+', '+sc.adres; show('dialer'); };
